@@ -26,4 +26,5 @@ public interface VouchRepository extends JpaRepository<Vouch, UUID> {
             UUID vouchedUserId,
             VouchStatus status
     );
+
 }
