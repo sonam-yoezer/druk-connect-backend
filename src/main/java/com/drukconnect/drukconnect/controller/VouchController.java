@@ -312,4 +312,17 @@ public class VouchController {
                 response
         );
     }
+
+    @GetMapping(
+            "/users/{userId}/vouch-count"
+    )
+    public VouchCountResponse getVouchCount(
+            @PathVariable UUID userId
+    ) {
+
+        return vouchService
+                .getVouchCount(
+                        userId
+                );
+    }
 }

@@ -1526,4 +1526,79 @@ public class VouchService {
 
         return response;
     }
+
+    @Transactional(readOnly = true)
+    public VouchCountResponse getVouchCount(
+            UUID userId
+    ) {
+
+        /*
+         * =========================================================
+         * FIND USER
+         * =========================================================
+         */
+        User user =
+                userRepository
+                        .findById(
+                                userId
+                        )
+                        .orElseThrow(() ->
+                                new ApiException(
+                                        HttpStatus.NOT_FOUND,
+                                        "USER_NOT_FOUND",
+                                        "User not found"
+                                )
+                        );
+
+        /*
+         * =========================================================
+         * ONLY LISTER NEEDS VOUCH COUNT
+         * =========================================================
+         */
+        if (
+                user.getAccessType()
+                        != AccessTypeEnum.LISTER
+        ) {
+
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "LISTER_REQUIRED",
+                    "Vouch count is applicable only to Lister accounts"
+            );
+        }
+
+        /*
+         * =========================================================
+         * COUNT ACTIVE VOUCHES
+         * =========================================================
+         */
+        long activeVouches =
+                vouchRepository
+                        .countActiveVouchesByUserId(
+                                userId
+                        );
+
+        /*
+         * Minimum required for LISTER.
+         */
+        long requiredVouches =
+                2;
+
+        long remainingVouches =
+                Math.max(
+                        0,
+                        requiredVouches - activeVouches
+                );
+
+        boolean requirementMet =
+                activeVouches >= requiredVouches;
+
+        return new VouchCountResponse(
+                user.getId(),
+                activeVouches,
+                requiredVouches,
+                remainingVouches,
+                requirementMet
+        );
+    }
 }
