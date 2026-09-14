@@ -1,9 +1,9 @@
 package com.drukconnect.drukconnect.security;
 
-import com.drukconnect.drukconnect.entity.AuthSession;
-import com.drukconnect.drukconnect.enums.UserStatus;
-import com.drukconnect.drukconnect.repository.AuthSessionRepository;
-import com.drukconnect.drukconnect.repository.RevokedAccessTokenRepository;
+import com.drukconnect.drukconnect.entity.authentication.AuthSession;
+import com.drukconnect.drukconnect.enums.authentication.UserStatus;
+import com.drukconnect.drukconnect.repository.authentication.AuthSessionRepository;
+import com.drukconnect.drukconnect.repository.authentication.RevokedAccessTokenRepository;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;

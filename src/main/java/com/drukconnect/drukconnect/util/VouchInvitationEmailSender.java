@@ -1,7 +1,7 @@
 package com.drukconnect.drukconnect.util;
 
 import com.drukconnect.drukconnect.config.AppProperties;
-import com.drukconnect.drukconnect.entity.User;
+import com.drukconnect.drukconnect.entity.authentication.User;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;

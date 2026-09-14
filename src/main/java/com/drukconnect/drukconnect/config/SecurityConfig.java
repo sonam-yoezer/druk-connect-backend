@@ -1,13 +1,14 @@
 package com.drukconnect.drukconnect.config;
 
 import com.drukconnect.drukconnect.security.AccessTokenValidator;
-
-
 import com.drukconnect.drukconnect.security.RestAccessDeniedHandler;
 import com.drukconnect.drukconnect.security.RestAuthenticationEntryPoint;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+
+import org.springframework.http.HttpMethod;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -33,7 +34,6 @@ import java.util.Base64;
 @Configuration
 public class SecurityConfig {
 
-
     /*
      * =========================================================
      * PASSWORD ENCODER
@@ -45,7 +45,6 @@ public class SecurityConfig {
         return PasswordEncoderFactories
                 .createDelegatingPasswordEncoder();
     }
-
 
     /*
      * =========================================================
@@ -64,7 +63,6 @@ public class SecurityConfig {
                                         .secretBase64()
                         );
 
-
         if (secret.length < 32) {
 
             throw new IllegalStateException(
@@ -72,13 +70,11 @@ public class SecurityConfig {
             );
         }
 
-
         return new SecretKeySpec(
                 secret,
                 "HmacSHA256"
         );
     }
-
 
     /*
      * =========================================================
@@ -99,7 +95,6 @@ public class SecurityConfig {
                 )
                 .build();
     }
-
 
     /*
      * =========================================================
@@ -123,7 +118,6 @@ public class SecurityConfig {
                         )
                         .build();
 
-
         decoder.setJwtValidator(
 
                 new DelegatingOAuth2TokenValidator<>(
@@ -138,29 +132,12 @@ public class SecurityConfig {
                 )
         );
 
-
         return decoder;
     }
-
 
     /*
      * =========================================================
      * JWT ROLE CONVERTER
-     * =========================================================
-     *
-     * JWT:
-     *
-     * roles:
-     * [
-     *   "ADMIN",
-     *   "ENDUSER"
-     * ]
-     *
-     * becomes:
-     *
-     * ROLE_ADMIN
-     * ROLE_ENDUSER
-     *
      * =========================================================
      */
     @Bean
@@ -169,44 +146,38 @@ public class SecurityConfig {
         JwtGrantedAuthoritiesConverter roles =
                 new JwtGrantedAuthoritiesConverter();
 
-
         roles.setAuthoritiesClaimName(
                 "roles"
         );
-
 
         roles.setAuthorityPrefix(
                 "ROLE_"
         );
 
-
         JwtAuthenticationConverter converter =
                 new JwtAuthenticationConverter();
-
 
         converter.setJwtGrantedAuthoritiesConverter(
                 roles
         );
 
-
         return converter;
     }
-
 
     /*
      * =========================================================
      * PUBLIC SECURITY FILTER CHAIN
      * =========================================================
      *
+     * ONLY endpoints that should NEVER attempt JWT
+     * authentication belong here.
+     *
      * IMPORTANT:
      *
-     * OAuth Resource Server is intentionally NOT enabled here.
+     * Listings are NOT included here.
      *
-     * Therefore even if Swagger/Postman accidentally sends:
-     *
-     * Authorization: Bearer expired-token
-     *
-     * signup/login/etc will NOT try to validate it.
+     * Listing GET endpoints will be made public
+     * in the second chain based on HttpMethod.GET.
      *
      * =========================================================
      */
@@ -243,12 +214,10 @@ public class SecurityConfig {
                         "/error"
                 )
 
-
                 .csrf(
                         csrf ->
                                 csrf.disable()
                 )
-
 
                 .sessionManagement(
                         session ->
@@ -257,30 +226,33 @@ public class SecurityConfig {
                                 )
                 )
 
-
                 .authorizeHttpRequests(
                         auth ->
                                 auth.anyRequest()
                                         .permitAll()
                 );
 
-
         return http.build();
     }
 
-
     /*
      * =========================================================
-     * PROTECTED SECURITY FILTER CHAIN
+     * PROTECTED / JWT SECURITY FILTER CHAIN
      * =========================================================
      *
-     * All endpoints not matched by the PUBLIC chain arrive here.
+     * Listings enter THIS chain.
      *
-     * Examples:
+     * GET listing endpoints:
+     *      public
      *
-     * /api/v1/auth/logout
-     * /api/v1/vouch-requests/**
-     * /api/v1/admin/**
+     * POST listing:
+     *      authenticated
+     *
+     * POST review:
+     *      authenticated
+     *
+     * Admin endpoints:
+     *      ROLE_ADMIN
      *
      * =========================================================
      */
@@ -300,7 +272,6 @@ public class SecurityConfig {
                                 csrf.disable()
                 )
 
-
                 .sessionManagement(
                         session ->
                                 session.sessionCreationPolicy(
@@ -308,36 +279,50 @@ public class SecurityConfig {
                                 )
                 )
 
-
                 /*
                  * ---------------------------------------------
-                 * Security JSON errors
+                 * SECURITY JSON ERRORS
                  * ---------------------------------------------
                  */
                 .exceptionHandling(
-                        exceptions -> exceptions
+                        exceptions ->
+                                exceptions
 
-                                .authenticationEntryPoint(
-                                        authenticationEntryPoint
-                                )
+                                        .authenticationEntryPoint(
+                                                authenticationEntryPoint
+                                        )
 
-                                .accessDeniedHandler(
-                                        accessDeniedHandler
-                                )
+                                        .accessDeniedHandler(
+                                                accessDeniedHandler
+                                        )
                 )
-
 
                 /*
                  * ---------------------------------------------
-                 * Authorization
+                 * AUTHORIZATION
                  * ---------------------------------------------
                  */
                 .authorizeHttpRequests(
                         auth -> auth
 
+                                /*
+                                 * =====================================
+                                 * PUBLIC LISTING READ ENDPOINTS
+                                 * =====================================
+                                 *
+                                 * No Bearer token required.
+                                 */
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/v1/listings",
+                                        "/api/v1/listings/**"
+                                )
+                                .permitAll()
 
                                 /*
+                                 * =====================================
                                  * ADMIN APIs
+                                 * =====================================
                                  */
                                 .requestMatchers(
                                         "/api/v1/admin/**"
@@ -346,14 +331,23 @@ public class SecurityConfig {
                                         "ADMIN"
                                 )
 
-
                                 /*
-                                 * Everything else requires login
+                                 * =====================================
+                                 * EVERYTHING ELSE
+                                 * =====================================
+                                 *
+                                 * Includes:
+                                 *
+                                 * POST /api/v1/listings
+                                 *
+                                 * POST
+                                 * /api/v1/listings/{id}/reviews
+                                 *
+                                 * logout, normal vouch APIs, etc.
                                  */
                                 .anyRequest()
                                 .authenticated()
                 )
-
 
                 /*
                  * ---------------------------------------------
@@ -361,20 +355,20 @@ public class SecurityConfig {
                  * ---------------------------------------------
                  */
                 .oauth2ResourceServer(
-                        oauth -> oauth
+                        oauth ->
+                                oauth
 
-                                .authenticationEntryPoint(
-                                        authenticationEntryPoint
-                                )
+                                        .authenticationEntryPoint(
+                                                authenticationEntryPoint
+                                        )
 
-                                .jwt(
-                                        jwt ->
-                                                jwt.jwtAuthenticationConverter(
-                                                        converter
-                                                )
-                                )
+                                        .jwt(
+                                                jwt ->
+                                                        jwt.jwtAuthenticationConverter(
+                                                                converter
+                                                        )
+                                        )
                 );
-
 
         return http.build();
     }
