@@ -1,7 +1,10 @@
 package com.drukconnect.drukconnect.config;
 
-import com.drukconnect.drukconnect.controller.AuthController;
-import com.drukconnect.drukconnect.controller.VouchController;
+import com.drukconnect.drukconnect.controller.authentication.AuthController;
+import com.drukconnect.drukconnect.controller.authentication.VouchController;
+import com.drukconnect.drukconnect.controller.listing.AdminReviewController;
+import com.drukconnect.drukconnect.controller.listing.ListingController;
+import com.drukconnect.drukconnect.controller.listing.ListingReviewController;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
@@ -135,6 +138,78 @@ public class OpenApiConfig {
                 .addOpenApiMethodFilter(
                         method ->
                                 VouchController.class
+                                        .isAssignableFrom(
+                                                method.getDeclaringClass()
+                                        )
+                )
+
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi adminReviewApi() {
+
+        return GroupedOpenApi.builder()
+
+                .group("Review")
+
+                .displayName("Admin Rewiew APIs")
+
+                .pathsToMatch(
+                        "/api/v1/admin/reviews/**"
+                )
+
+                .addOpenApiMethodFilter(
+                        method ->
+                                AdminReviewController.class
+                                        .isAssignableFrom(
+                                                method.getDeclaringClass()
+                                        )
+                )
+
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi listingApi() {
+
+        return GroupedOpenApi.builder()
+
+                .group("Listing")
+
+                .displayName("Listing APIs")
+
+                .pathsToMatch(
+                        "/api/v1/listings/**"
+                )
+
+                .addOpenApiMethodFilter(
+                        method ->
+                                ListingController.class
+                                        .isAssignableFrom(
+                                                method.getDeclaringClass()
+                                        )
+                )
+
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi reviewApi() {
+
+        return GroupedOpenApi.builder()
+
+                .group("User Review")
+
+                .displayName("Review APIs")
+
+                .pathsToMatch(
+                        "/api/v1/listings/**"
+                )
+
+                .addOpenApiMethodFilter(
+                        method ->
+                                ListingReviewController.class
                                         .isAssignableFrom(
                                                 method.getDeclaringClass()
                                         )

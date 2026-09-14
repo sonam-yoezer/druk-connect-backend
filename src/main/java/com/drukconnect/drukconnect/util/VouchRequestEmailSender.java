@@ -1,8 +1,8 @@
 package com.drukconnect.drukconnect.util;
 
 import com.drukconnect.drukconnect.config.AppProperties;
-import com.drukconnect.drukconnect.entity.User;
-import com.drukconnect.drukconnect.entity.VouchRequestEntity;
+import com.drukconnect.drukconnect.entity.authentication.User;
+import com.drukconnect.drukconnect.entity.authentication.VouchRequestEntity;
 
 import jakarta.mail.internet.MimeMessage;
 

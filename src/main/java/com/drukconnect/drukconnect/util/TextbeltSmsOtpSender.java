@@ -1,7 +1,7 @@
 package com.drukconnect.drukconnect.util;
 
 import com.drukconnect.drukconnect.config.AppProperties;
-import com.drukconnect.drukconnect.enums.OtpChannel;
+import com.drukconnect.drukconnect.enums.authentication.OtpChannel;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

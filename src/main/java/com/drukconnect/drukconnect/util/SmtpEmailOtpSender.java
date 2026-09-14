@@ -1,7 +1,7 @@
 package com.drukconnect.drukconnect.util;
 
 import com.drukconnect.drukconnect.config.AppProperties;
-import com.drukconnect.drukconnect.enums.OtpChannel;
+import com.drukconnect.drukconnect.enums.authentication.OtpChannel;
 
 import lombok.extern.slf4j.Slf4j;
 

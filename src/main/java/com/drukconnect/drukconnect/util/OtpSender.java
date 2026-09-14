@@ -1,6 +1,6 @@
 package com.drukconnect.drukconnect.util;
 
-import com.drukconnect.drukconnect.enums.OtpChannel;
+import com.drukconnect.drukconnect.enums.authentication.OtpChannel;
 
 public interface OtpSender {
 
