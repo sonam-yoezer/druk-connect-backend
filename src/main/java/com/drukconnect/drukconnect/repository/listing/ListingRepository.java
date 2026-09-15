@@ -44,4 +44,83 @@ public interface ListingRepository
             @Param("status")
             ListingStatus status
     );
+
+    Page<Listing> findByListerIdAndStatusNot(
+            UUID listerId,
+            ListingStatus status,
+            Pageable pageable
+    );
+
+    Optional<Listing> findByIdAndListerIdAndStatusNot(
+            UUID id,
+            UUID listerId,
+            ListingStatus status
+    );
+
+    @Query("""
+        SELECT l
+        FROM Listing l
+        JOIN l.lister u
+        WHERE l.status = :status
+
+        AND (
+            :category IS NULL
+            OR LOWER(l.listingCategory) = LOWER(:category)
+        )
+
+        AND (
+            :city IS NULL
+            OR LOWER(l.city) = LOWER(:city)
+        )
+
+        AND (
+            :query IS NULL
+
+            OR LOWER(l.listingTitle)
+                LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR LOWER(l.listingCategory)
+                LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR LOWER(l.description)
+                LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR LOWER(l.cuisine)
+                LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR LOWER(l.serviceType)
+                LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR LOWER(u.firstName)
+                LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR LOWER(u.lastName)
+                LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR LOWER(
+                CONCAT(
+                    u.firstName,
+                    ' ',
+                    u.lastName
+                )
+            )
+                LIKE LOWER(CONCAT('%', :query, '%'))
+        )
+        """)
+    Page<Listing> searchListings(
+
+            @Param("status")
+            ListingStatus status,
+
+            @Param("category")
+            String category,
+
+            @Param("city")
+            String city,
+
+            @Param("query")
+            String query,
+
+            Pageable pageable
+    );
 }

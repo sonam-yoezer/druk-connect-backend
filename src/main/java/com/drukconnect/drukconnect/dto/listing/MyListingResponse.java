@@ -2,12 +2,14 @@ package com.drukconnect.drukconnect.dto.listing;
 
 import com.drukconnect.drukconnect.enums.listing.ListingAvailability;
 import com.drukconnect.drukconnect.enums.listing.ListingPricingType;
+import com.drukconnect.drukconnect.enums.listing.ListingStatus;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-public record ListingSummaryResponse(
+public record MyListingResponse(
 
         UUID id,
 
@@ -29,7 +31,9 @@ public record ListingSummaryResponse(
 
         String currencyCode,
 
-        long views,
+        Long views,
+
+        ListingStatus status,
 
         List<ListingImageResponse> images,
 
@@ -39,7 +43,9 @@ public record ListingSummaryResponse(
 
         int averageRatingStar,
 
-        String listerName
+        Instant createdAt,
+
+        Instant updatedAt
 
 ) {
 }

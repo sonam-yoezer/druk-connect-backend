@@ -7,6 +7,7 @@ import com.drukconnect.drukconnect.enums.listing.ListingStatus;
 
 import jakarta.persistence.*;
 
+import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "listings")
+@Data
 public class Listing {
 
     @Id
@@ -44,6 +46,13 @@ public class Listing {
             length = 180
     )
     private String listingTitle;
+
+    @Column(
+            name = "listing_category",
+            nullable = false,
+            length = 120
+    )
+    private String listingCategory;
 
     @Column(
             name = "city",

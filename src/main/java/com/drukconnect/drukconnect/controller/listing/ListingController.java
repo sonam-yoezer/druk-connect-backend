@@ -209,4 +209,141 @@ public class ListingController {
                         resource
                 );
     }
+
+    @GetMapping("/getMyListings")
+    public PagedMyListingResponse getMyListings(
+
+            @AuthenticationPrincipal
+            Jwt jwt,
+
+            @RequestParam(
+                    defaultValue = "1"
+            )
+            int page,
+
+            @RequestParam(
+                    defaultValue = "10"
+            )
+            int size
+    ) {
+
+        UUID userId =
+                UUID.fromString(
+                        jwt.getSubject()
+                );
+
+        return listingService
+                .getMyListings(
+                        userId,
+                        page,
+                        size
+                );
+    }
+
+
+    @PatchMapping("/{listingId}")
+    public ListingDetailResponse updateListing(
+
+            @AuthenticationPrincipal
+            Jwt jwt,
+
+            @PathVariable
+            UUID listingId,
+
+            @Valid
+            @RequestBody
+            UpdateListingRequest request,
+
+            HttpServletRequest httpRequest
+    ) {
+
+        UUID userId =
+                UUID.fromString(
+                        jwt.getSubject()
+                );
+
+        return listingService
+                .updateListing(
+                        userId,
+                        listingId,
+                        request,
+                        RequestMetadata.from(
+                                httpRequest
+                        )
+                );
+    }
+
+    @DeleteMapping("/{listingId}")
+    @ResponseStatus(
+            HttpStatus.NO_CONTENT
+    )
+    public void deleteListing(
+
+            @AuthenticationPrincipal
+            Jwt jwt,
+
+            @PathVariable
+            UUID listingId,
+
+            HttpServletRequest httpRequest
+    ) {
+
+        UUID userId =
+                UUID.fromString(
+                        jwt.getSubject()
+                );
+
+        listingService.deleteListing(
+                userId,
+                listingId,
+                RequestMetadata.from(
+                        httpRequest
+                )
+        );
+    }
+
+    @GetMapping("/search")
+    public PagedListingResponse searchListings(
+
+            @RequestParam(
+                    required = false
+            )
+            String category,
+
+            @RequestParam(
+                    required = false
+            )
+            String city,
+
+            @RequestParam(
+                    name = "q",
+                    required = false
+            )
+            String query,
+
+            @RequestParam(
+                    defaultValue = "1"
+            )
+            int page,
+
+            @RequestParam(
+                    defaultValue = "10"
+            )
+            int size
+    ) {
+
+        return listingService
+                .searchListings(
+
+                        category,
+
+                        city,
+
+                        query,
+
+                        page,
+
+                        size
+                );
+    }
 }
