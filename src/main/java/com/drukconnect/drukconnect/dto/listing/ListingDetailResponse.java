@@ -15,6 +15,8 @@ public record ListingDetailResponse(
 
         String listingTitle,
 
+        String listingCategory,
+
         String city,
 
         String description,

@@ -177,6 +177,11 @@ public class ListingService {
                         .trim()
         );
 
+        listing.setListingCategory(
+                request.listingCategory()
+                        .trim()
+        );
+
         listing.setCity(
                 request.city()
                         .trim()
@@ -475,6 +480,8 @@ public class ListingService {
 
                 listing.getListingTitle(),
 
+                listing.getListingCategory(),
+
                 listing.getCity(),
 
                 listing.getCuisine(),
@@ -651,6 +658,8 @@ public class ListingService {
 
                 listing.getListingTitle(),
 
+                listing.getListingCategory(),
+
                 listing.getCity(),
 
                 listing.getDescription(),
@@ -818,5 +827,558 @@ public class ListingService {
             int averageRatingStar
 
     ) {
+    }
+
+    private User requireLister(
+            UUID userId
+    ) {
+
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() ->
+                                new ApiException(
+                                        HttpStatus.NOT_FOUND,
+                                        "USER_NOT_FOUND",
+                                        "User not found"
+                                )
+                        );
+
+        if (
+                user.getAccessType()
+                        != AccessTypeEnum.LISTER
+        ) {
+
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "LISTER_REQUIRED",
+                    "Only Lister accounts can manage listings"
+            );
+        }
+
+        return user;
+    }
+
+
+    @Transactional(readOnly = true)
+    public PagedMyListingResponse getMyListings(
+            UUID currentUserId,
+            int page,
+            int size
+    ) {
+
+        requireLister(
+                currentUserId
+        );
+
+        int safePage =
+                Math.max(
+                        page,
+                        1
+                );
+
+        int safeSize =
+                Math.min(
+                        Math.max(
+                                size,
+                                1
+                        ),
+                        50
+                );
+
+        Pageable pageable =
+                PageRequest.of(
+                        safePage - 1,
+                        safeSize,
+                        Sort.by(
+                                Sort.Direction.DESC,
+                                "createdAt"
+                        )
+                );
+
+        Page<Listing> result =
+                listingRepository
+                        .findByListerIdAndStatusNot(
+                                currentUserId,
+                                ListingStatus.DELETED,
+                                pageable
+                        );
+
+        List<MyListingResponse> listings =
+                result.getContent()
+                        .stream()
+                        .map(
+                                this::buildMyListingResponse
+                        )
+                        .toList();
+
+        return new PagedMyListingResponse(
+
+                listings,
+
+                result.getNumber() + 1,
+
+                result.getSize(),
+
+                result.getTotalElements(),
+
+                result.getTotalPages(),
+
+                result.hasNext(),
+
+                result.hasPrevious()
+        );
+    }
+
+    private MyListingResponse buildMyListingResponse(
+            Listing listing
+    ) {
+
+        RatingSummary rating =
+                ratingSummary(
+                        listing.getId()
+                );
+
+        return new MyListingResponse(
+
+                listing.getId(),
+
+                listing.getListingTitle(),
+
+                listing.getListingCategory(),
+
+                listing.getCity(),
+
+                listing.getCuisine(),
+
+                listing.getServiceType(),
+
+                listing.getAvailability(),
+
+                listing.getPricingType(),
+
+                listing.getRateAmount(),
+
+                listing.getCurrencyCode(),
+
+                listing.getViews(),
+
+                listing.getStatus(),
+
+                imageResponses(
+                        listing.getId()
+                ),
+
+                rating.totalReviews(),
+
+                rating.averageRating(),
+
+                rating.averageRatingStar(),
+
+                listing.getCreatedAt(),
+
+                listing.getUpdatedAt()
+        );
+    }
+
+    @Transactional
+    public ListingDetailResponse updateListing(
+            UUID currentUserId,
+            UUID listingId,
+            UpdateListingRequest request,
+            RequestMetadata meta
+    ) {
+
+        requireLister(
+                currentUserId
+        );
+
+        Listing listing =
+                listingRepository
+                        .findByIdAndListerIdAndStatusNot(
+                                listingId,
+                                currentUserId,
+                                ListingStatus.DELETED
+                        )
+                        .orElseThrow(() ->
+                                new ApiException(
+                                        HttpStatus.NOT_FOUND,
+                                        "LISTING_NOT_FOUND",
+                                        "Listing not found"
+                                )
+                        );
+
+        /*
+         * At least one field must be supplied.
+         */
+        if (
+                request.pricingType() == null
+                        &&
+                        request.rateAmount() == null
+                        &&
+                        request.availability() == null
+        ) {
+
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "NO_CHANGES_PROVIDED",
+                    "Provide pricing type, rate amount or availability to update"
+            );
+        }
+
+        /*
+         * =========================================================
+         * AVAILABILITY
+         * =========================================================
+         */
+        if (
+                request.availability() != null
+        ) {
+
+            listing.setAvailability(
+                    request.availability()
+            );
+        }
+
+        /*
+         * =========================================================
+         * PRICING
+         * =========================================================
+         */
+
+        ListingPricingType targetPricingType =
+                request.pricingType() != null
+                        ? request.pricingType()
+                        : listing.getPricingType();
+
+        /*
+         * FREE
+         */
+        if (
+                targetPricingType
+                        == ListingPricingType.FREE
+        ) {
+
+            /*
+             * Do not allow:
+             *
+             * pricingType = FREE
+             * rateAmount = 35
+             */
+            if (
+                    request.rateAmount() != null
+                            &&
+                            request.rateAmount()
+                                    .compareTo(
+                                            BigDecimal.ZERO
+                                    ) > 0
+            ) {
+
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST,
+                        "RATE_NOT_ALLOWED_FOR_FREE_LISTING",
+                        "Rate amount must not be provided when the listing is free"
+                );
+            }
+
+            listing.setPricingType(
+                    ListingPricingType.FREE
+            );
+
+            listing.setRateAmount(
+                    null
+            );
+        }
+
+        /*
+         * PAID
+         */
+        if (
+                targetPricingType
+                        == ListingPricingType.PAID
+        ) {
+
+            BigDecimal rateAmount =
+                    request.rateAmount() != null
+                            ? request.rateAmount()
+                            : listing.getRateAmount();
+
+            if (
+                    rateAmount == null
+                            ||
+                            rateAmount.compareTo(
+                                    BigDecimal.ZERO
+                            ) <= 0
+            ) {
+
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST,
+                        "RATE_REQUIRED",
+                        "A rate amount greater than zero is required for paid listings"
+                );
+            }
+
+            listing.setPricingType(
+                    ListingPricingType.PAID
+            );
+
+            listing.setRateAmount(
+                    rateAmount.setScale(
+                            2,
+                            RoundingMode.HALF_UP
+                    )
+            );
+        }
+
+        listing =
+                listingRepository
+                        .saveAndFlush(
+                                listing
+                        );
+
+        auditService.log(
+                "LISTING_UPDATED",
+                currentUserId,
+                null,
+                null,
+                null,
+                meta,
+                "{"
+                        + "\"listingId\":\""
+                        + listingId
+                        + "\","
+                        + "\"pricingType\":\""
+                        + listing.getPricingType()
+                        + "\","
+                        + "\"rateAmount\":"
+                        + (
+                        listing.getRateAmount() == null
+                                ? "null"
+                                : listing.getRateAmount()
+                )
+                        + ","
+                        + "\"availability\":\""
+                        + listing.getAvailability()
+                        + "\""
+                        + "}"
+        );
+
+        return buildDetail(
+                listing
+        );
+    }
+
+    @Transactional
+    public void deleteListing(
+            UUID currentUserId,
+            UUID listingId,
+            RequestMetadata meta
+    ) {
+
+        requireLister(
+                currentUserId
+        );
+
+        Listing listing =
+                listingRepository
+                        .findByIdAndListerIdAndStatusNot(
+                                listingId,
+                                currentUserId,
+                                ListingStatus.DELETED
+                        )
+                        .orElseThrow(() ->
+                                new ApiException(
+                                        HttpStatus.NOT_FOUND,
+                                        "LISTING_NOT_FOUND",
+                                        "Listing not found"
+                                )
+                        );
+
+        /*
+         * Soft delete.
+         *
+         * Keep DB history, reviews,
+         * images and audit records.
+         */
+        listing.setStatus(
+                ListingStatus.DELETED
+        );
+
+        listingRepository
+                .saveAndFlush(
+                        listing
+                );
+
+        auditService.log(
+                "LISTING_DELETED",
+                currentUserId,
+                null,
+                null,
+                null,
+                meta,
+                "{\"listingId\":\""
+                        + listingId
+                        + "\"}"
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public PagedListingResponse searchListings(
+
+            String category,
+
+            String city,
+
+            String query,
+
+            int page,
+
+            int size
+    ) {
+
+        /*
+         * =========================================================
+         * PAGINATION
+         * =========================================================
+         */
+
+        int safePage =
+                Math.max(
+                        page,
+                        1
+                );
+
+        int safeSize =
+                Math.min(
+                        Math.max(
+                                size,
+                                1
+                        ),
+                        50
+                );
+
+
+        /*
+         * =========================================================
+         * NORMALIZE FILTERS
+         * =========================================================
+         *
+         * Empty values become null so the repository
+         * ignores that filter.
+         *
+         * Examples:
+         *
+         * category=""
+         * becomes null
+         *
+         * city=""
+         * becomes null
+         *
+         * q=""
+         * becomes null
+         *
+         * =========================================================
+         */
+
+        String normalizedCategory =
+                normalizeSearchValue(
+                        category
+                );
+
+        String normalizedCity =
+                normalizeSearchValue(
+                        city
+                );
+
+        String normalizedQuery =
+                normalizeSearchValue(
+                        query
+                );
+
+
+        Pageable pageable =
+                PageRequest.of(
+
+                        safePage - 1,
+
+                        safeSize,
+
+                        Sort.by(
+                                Sort.Direction.DESC,
+                                "createdAt"
+                        )
+                );
+
+
+        /*
+         * =========================================================
+         * DATABASE SEARCH
+         * =========================================================
+         */
+
+        Page<Listing> result =
+                listingRepository
+                        .searchListings(
+
+                                ListingStatus.ACTIVE,
+
+                                normalizedCategory,
+
+                                normalizedCity,
+
+                                normalizedQuery,
+
+                                pageable
+                        );
+
+
+        /*
+         * =========================================================
+         * USE SAME RESPONSE AS GET ALL
+         * =========================================================
+         */
+
+        List<ListingSummaryResponse> listings =
+                result
+                        .getContent()
+                        .stream()
+                        .map(
+                                this::buildSummary
+                        )
+                        .toList();
+
+
+        return new PagedListingResponse(
+
+                listings,
+
+                result.getNumber() + 1,
+
+                result.getSize(),
+
+                result.getTotalElements(),
+
+                result.getTotalPages(),
+
+                result.hasNext(),
+
+                result.hasPrevious()
+        );
+    }
+
+    private String normalizeSearchValue(
+            String value
+    ) {
+
+        if (
+                value == null
+                        ||
+                        value.isBlank()
+        ) {
+
+            return null;
+        }
+
+        return value.trim();
     }
 }

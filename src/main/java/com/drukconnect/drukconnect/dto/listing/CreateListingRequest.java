@@ -16,6 +16,10 @@ public record CreateListingRequest(
 
         @NotBlank
         @Size(max = 120)
+        String listingCategory,
+
+        @NotBlank
+        @Size(max = 120)
         String city,
 
         @NotBlank
