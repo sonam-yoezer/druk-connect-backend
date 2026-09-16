@@ -16,6 +16,8 @@ import com.drukconnect.drukconnect.repository.authentication.*;
 
 
 import com.drukconnect.drukconnect.service.authentication.AuditService;
+import com.drukconnect.drukconnect.util.ReviewNotificationEmailSender;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 
 import org.springframework.http.HttpStatus;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -39,6 +42,9 @@ public class ListingReviewService {
     private final UserRepository userRepository;
 
     private final AuditService auditService;
+
+    @Autowired
+    private ReviewNotificationEmailSender reviewNotificationEmailSender;
 
     public ListingReviewService(
             ListingRepository listingRepository,
@@ -154,6 +160,11 @@ public class ListingReviewService {
                 request.rating()
         );
 
+        review.setComment(
+                request.comment()
+                        .trim()
+        );
+
         review.setTags(
                 request.tags()
                         == null
@@ -195,7 +206,11 @@ public class ListingReviewService {
 
                 review.getRating(),
 
-                review.getTags(),
+                review.getComment(),
+
+                new LinkedHashSet<>(
+                        review.getTags()
+                ),
 
                 review.getStatus()
                         .name(),
@@ -212,9 +227,10 @@ public class ListingReviewService {
      * =========================================================
      */
     @Transactional
-    public ListingReviewResponse approve(
+    public ReviewModerationResponse moderateReview(
             UUID adminId,
             UUID reviewId,
+            ModerateReviewRequest request,
             RequestMetadata meta
     ) {
 
@@ -256,134 +272,405 @@ public class ListingReviewService {
             );
         }
 
-        review.setStatus(
-                ReviewStatus.APPROVED
-        );
+        Instant now =
+                Instant.now();
 
-        review.setModeratedAt(
-                Instant.now()
-        );
+        /*
+         * =========================================================
+         * APPROVE
+         * =========================================================
+         */
+        if (
+                request.action()
+                        == ReviewModerationAction.APPROVE
+        ) {
 
-        review.setModeratedBy(
-                admin
-        );
+            review.setStatus(
+                    ReviewStatus.APPROVED
+            );
 
-        review =
-                reviewRepository
-                        .saveAndFlush(
+            review.setModeratedAt(
+                    now
+            );
+
+            review.setModeratedBy(
+                    admin
+            );
+
+            review.setRejectionReason(
+                    null
+            );
+
+            review =
+                    reviewRepository
+                            .saveAndFlush(
+                                    review
+                            );
+
+            /*
+             * ---------------------------------------------
+             * AUDIT: REVIEW APPROVED
+             * ---------------------------------------------
+             */
+            auditService.log(
+                    "LISTING_REVIEW_APPROVED",
+                    adminId,
+                    null,
+                    review.getReviewer()
+                            .getId(),
+                    null,
+                    meta,
+                    "{"
+                            + "\"listingId\":\""
+                            + review.getListing()
+                            .getId()
+                            + "\","
+                            + "\"reviewId\":\""
+                            + review.getId()
+                            + "\""
+                            + "}"
+            );
+
+            /*
+             * ---------------------------------------------
+             * EMAIL REVIEWER
+             * ---------------------------------------------
+             *
+             * Email failure must NOT rollback approval.
+             */
+            try {
+
+                reviewNotificationEmailSender
+                        .sendReviewerModerationEmail(
+
+                                review.getReviewer(),
+
+                                review.getListing(),
+
                                 review
                         );
 
-        auditService.log(
-                "LISTING_REVIEW_APPROVED",
-                adminId,
-                null,
-                review.getReviewer()
-                        .getId(),
-                null,
-                meta,
-                "{\"listingId\":\""
-                        + review.getListing()
-                        .getId()
-                        + "\","
-                        + "\"reviewId\":\""
-                        + reviewId
-                        + "\"}"
-        );
+                auditService.log(
+                        "REVIEW_APPROVAL_EMAIL_SENT",
+                        adminId,
+                        null,
+                        review.getReviewer()
+                                .getId(),
+                        null,
+                        meta,
+                        "{"
+                                + "\"reviewId\":\""
+                                + review.getId()
+                                + "\""
+                                + "}"
+                );
 
-        return mapApproved(
-                review
-        );
-    }
+            } catch (Exception ex) {
 
-    /*
-     * =========================================================
-     * ADMIN REJECT
-     * =========================================================
-     */
-    @Transactional
-    public void reject(
-            UUID adminId,
-            UUID reviewId,
-            String reason,
-            RequestMetadata meta
-    ) {
-
-        User admin =
-                userRepository
-                        .findById(
-                                adminId
+                /*
+                 * Do NOT throw.
+                 *
+                 * Review approval remains successful.
+                 */
+                auditService.log(
+                        "REVIEW_APPROVAL_EMAIL_FAILED",
+                        adminId,
+                        null,
+                        review.getReviewer()
+                                .getId(),
+                        null,
+                        meta,
+                        "{"
+                                + "\"reviewId\":\""
+                                + review.getId()
+                                + "\","
+                                + "\"error\":\""
+                                + safeAuditText(
+                                ex.getMessage()
                         )
-                        .orElseThrow(() ->
-                                new ApiException(
-                                        HttpStatus.NOT_FOUND,
-                                        "USER_NOT_FOUND",
-                                        "Admin user not found"
-                                )
+                                + "\""
+                                + "}"
+                );
+            }
+
+            /*
+             * ---------------------------------------------
+             * EMAIL LISTER
+             *
+             * There is now a NEW PUBLISHED REVIEW.
+             * ---------------------------------------------
+             */
+            try {
+
+                User lister =
+                        review.getListing()
+                                .getLister();
+
+                reviewNotificationEmailSender
+                        .sendListerNewReviewEmail(
+
+                                lister,
+
+                                review.getReviewer(),
+
+                                review.getListing(),
+
+                                review
                         );
 
-        ListingReview review =
-                reviewRepository
-                        .findById(
-                                reviewId
+                auditService.log(
+                        "LISTER_NEW_REVIEW_EMAIL_SENT",
+                        adminId,
+                        null,
+                        lister.getId(),
+                        null,
+                        meta,
+                        "{"
+                                + "\"listingId\":\""
+                                + review.getListing()
+                                .getId()
+                                + "\","
+                                + "\"reviewId\":\""
+                                + review.getId()
+                                + "\""
+                                + "}"
+                );
+
+            } catch (Exception ex) {
+
+                auditService.log(
+                        "LISTER_NEW_REVIEW_EMAIL_FAILED",
+                        adminId,
+                        null,
+                        review.getListing()
+                                .getLister()
+                                .getId(),
+                        null,
+                        meta,
+                        "{"
+                                + "\"reviewId\":\""
+                                + review.getId()
+                                + "\","
+                                + "\"error\":\""
+                                + safeAuditText(
+                                ex.getMessage()
                         )
-                        .orElseThrow(() ->
-                                new ApiException(
-                                        HttpStatus.NOT_FOUND,
-                                        "REVIEW_NOT_FOUND",
-                                        "Review not found"
-                                )
-                        );
+                                + "\""
+                                + "}"
+                );
+            }
 
-        if (
-                review.getStatus()
-                        != ReviewStatus.PENDING
-        ) {
-
-            throw new ApiException(
-                    HttpStatus.CONFLICT,
-                    "REVIEW_ALREADY_MODERATED",
-                    "This review has already been moderated"
+            return buildModerationResponse(
+                    review,
+                    "Review approved and published successfully."
             );
         }
 
-        review.setStatus(
-                ReviewStatus.REJECTED
-        );
+        /*
+         * =========================================================
+         * REJECT
+         * =========================================================
+         */
+        if (
+                request.action()
+                        == ReviewModerationAction.REJECT
+        ) {
 
-        review.setModeratedAt(
-                Instant.now()
-        );
+            if (
+                    request.reason() == null
+                            ||
+                            request.reason()
+                                    .isBlank()
+            ) {
 
-        review.setModeratedBy(
-                admin
-        );
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST,
+                        "REJECTION_REASON_REQUIRED",
+                        "A reason is required when rejecting a review"
+                );
+            }
 
-        review.setRejectionReason(
-                reason
-        );
+            review.setStatus(
+                    ReviewStatus.REJECTED
+            );
 
-        reviewRepository
-                .saveAndFlush(
-                        review
+            review.setModeratedAt(
+                    now
+            );
+
+            review.setModeratedBy(
+                    admin
+            );
+
+            review.setRejectionReason(
+                    request.reason()
+                            .trim()
+            );
+
+            review =
+                    reviewRepository
+                            .saveAndFlush(
+                                    review
+                            );
+
+            /*
+             * ---------------------------------------------
+             * AUDIT: REVIEW REJECTED
+             * ---------------------------------------------
+             */
+            auditService.log(
+                    "LISTING_REVIEW_REJECTED",
+                    adminId,
+                    null,
+                    review.getReviewer()
+                            .getId(),
+                    null,
+                    meta,
+                    "{"
+                            + "\"listingId\":\""
+                            + review.getListing()
+                            .getId()
+                            + "\","
+                            + "\"reviewId\":\""
+                            + review.getId()
+                            + "\""
+                            + "}"
+            );
+
+            /*
+             * ---------------------------------------------
+             * EMAIL REVIEWER
+             * ---------------------------------------------
+             */
+            try {
+
+                reviewNotificationEmailSender
+                        .sendReviewerModerationEmail(
+
+                                review.getReviewer(),
+
+                                review.getListing(),
+
+                                review
+                        );
+
+                auditService.log(
+                        "REVIEW_REJECTION_EMAIL_SENT",
+                        adminId,
+                        null,
+                        review.getReviewer()
+                                .getId(),
+                        null,
+                        meta,
+                        "{"
+                                + "\"reviewId\":\""
+                                + review.getId()
+                                + "\""
+                                + "}"
                 );
 
-        auditService.log(
-                "LISTING_REVIEW_REJECTED",
-                adminId,
-                null,
-                review.getReviewer()
-                        .getId(),
-                null,
-                meta,
-                "{\"listingId\":\""
-                        + review.getListing()
-                        .getId()
-                        + "\","
-                        + "\"reviewId\":\""
-                        + reviewId
-                        + "\"}"
+            } catch (Exception ex) {
+
+                auditService.log(
+                        "REVIEW_REJECTION_EMAIL_FAILED",
+                        adminId,
+                        null,
+                        review.getReviewer()
+                                .getId(),
+                        null,
+                        meta,
+                        "{"
+                                + "\"reviewId\":\""
+                                + review.getId()
+                                + "\","
+                                + "\"error\":\""
+                                + safeAuditText(
+                                ex.getMessage()
+                        )
+                                + "\""
+                                + "}"
+                );
+            }
+
+            /*
+             * IMPORTANT:
+             *
+             * Do NOT email the LISTER here.
+             *
+             * The review was rejected, therefore
+             * there is no new published review.
+             */
+
+            return buildModerationResponse(
+                    review,
+                    "Review rejected successfully."
+            );
+        }
+
+        throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "INVALID_MODERATION_ACTION",
+                "Invalid review moderation action"
         );
+    }
+
+    private ReviewModerationResponse buildModerationResponse(
+            ListingReview review,
+            String message
+    ) {
+
+        User reviewer =
+                review.getReviewer();
+
+        return new ReviewModerationResponse(
+
+                review.getId(),
+
+                review.getListing()
+                        .getId(),
+
+                reviewer.getId(),
+
+                (
+                        reviewer.getFirstName()
+                                + " "
+                                + reviewer.getLastName()
+                ).trim(),
+
+                review.getRating(),
+
+                review.getComment(),
+
+                new LinkedHashSet<>(
+                        review.getTags()
+                ),
+
+                review.getStatus()
+                        .name(),
+
+                review.getRejectionReason(),
+
+                review.getSubmittedAt(),
+
+                review.getModeratedAt(),
+
+                message
+        );
+    }
+
+    private String safeAuditText(
+            String value
+    ) {
+
+        if (value == null) {
+            return "";
+        }
+
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", " ")
+                .replace("\r", " ");
     }
 
     private ListingReviewResponse mapApproved(
@@ -406,6 +693,8 @@ public class ListingReviewService {
                 ).trim(),
 
                 review.getRating(),
+
+                review.getComment(),
 
                 review.getTags(),
 
@@ -475,7 +764,11 @@ public class ListingReviewService {
 
                                             review.getRating(),
 
-                                            review.getTags(),
+                                            review.getComment(),
+
+                                            new LinkedHashSet<>(
+                                                    review.getTags()
+                                            ),
 
                                             review.getStatus()
                                                     .name(),

@@ -550,11 +550,8 @@ public class ListingService {
 
                                                 review.getRating(),
 
-                                                /*
-                                                 * IMPORTANT:
-                                                 * Copy lazy Hibernate collection
-                                                 * into a normal Java Set.
-                                                 */
+                                                review.getComment(),
+
                                                 new LinkedHashSet<>(
                                                         review.getTags()
                                                 ),
