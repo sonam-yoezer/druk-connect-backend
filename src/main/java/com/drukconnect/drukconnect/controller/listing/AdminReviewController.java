@@ -1,9 +1,7 @@
 package com.drukconnect.drukconnect.controller.listing;
 
 import com.drukconnect.drukconnect.common.RequestMetadata;
-import com.drukconnect.drukconnect.dto.listing.ListingReviewResponse;
-import com.drukconnect.drukconnect.dto.listing.PagedAdminReviewResponse;
-import com.drukconnect.drukconnect.dto.listing.RejectReviewRequest;
+import com.drukconnect.drukconnect.dto.listing.*;
 import com.drukconnect.drukconnect.service.listing.ListingReviewService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,38 +31,10 @@ public class AdminReviewController {
                 reviewService;
     }
 
-    @PatchMapping(
-            "/{reviewId}/approve"
+    @PostMapping(
+            "/{reviewId}/approveOrReject"
     )
-    public ListingReviewResponse approve(
-
-            @AuthenticationPrincipal
-            Jwt jwt,
-
-            @PathVariable
-            UUID reviewId,
-
-            HttpServletRequest request
-    ) {
-
-        UUID adminId =
-                UUID.fromString(
-                        jwt.getSubject()
-                );
-
-        return reviewService.approve(
-                adminId,
-                reviewId,
-                RequestMetadata.from(
-                        request
-                )
-        );
-    }
-
-    @PatchMapping(
-            "/{reviewId}/reject"
-    )
-    public ResponseEntity<Void> reject(
+    public ReviewModerationResponse moderateReview(
 
             @AuthenticationPrincipal
             Jwt jwt,
@@ -74,9 +44,9 @@ public class AdminReviewController {
 
             @Valid
             @RequestBody
-            RejectReviewRequest body,
+            ModerateReviewRequest request,
 
-            HttpServletRequest request
+            HttpServletRequest httpRequest
     ) {
 
         UUID adminId =
@@ -84,18 +54,15 @@ public class AdminReviewController {
                         jwt.getSubject()
                 );
 
-        reviewService.reject(
-                adminId,
-                reviewId,
-                body.reason(),
-                RequestMetadata.from(
-                        request
-                )
-        );
-
-        return ResponseEntity
-                .noContent()
-                .build();
+        return reviewService
+                .moderateReview(
+                        adminId,
+                        reviewId,
+                        request,
+                        RequestMetadata.from(
+                                httpRequest
+                        )
+                );
     }
 
     @GetMapping

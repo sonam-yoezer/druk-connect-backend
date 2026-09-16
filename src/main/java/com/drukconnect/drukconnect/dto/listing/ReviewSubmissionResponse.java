@@ -12,6 +12,8 @@ public record ReviewSubmissionResponse(
 
         Integer rating,
 
+        String comment,
+
         Set<String> tags,
 
         String status,

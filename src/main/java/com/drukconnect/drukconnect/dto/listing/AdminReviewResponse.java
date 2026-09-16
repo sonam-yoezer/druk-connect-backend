@@ -20,6 +20,8 @@ public record AdminReviewResponse(
 
         Integer rating,
 
+        String comment,
+
         Set<String> tags,
 
         String status,

@@ -5,6 +5,7 @@ import com.drukconnect.drukconnect.enums.listing.ReviewStatus;
 
 import jakarta.persistence.*;
 
+import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
@@ -14,6 +15,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "listing_reviews")
+@Data
 public class ListingReview {
 
     @Id
@@ -48,6 +50,12 @@ public class ListingReview {
             nullable = false
     )
     private Integer rating;
+
+    @Column(
+            name = "comment_text",
+            length = 2000
+    )
+    private String comment;
 
     @ElementCollection
     @CollectionTable(

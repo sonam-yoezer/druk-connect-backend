@@ -11,6 +11,9 @@ public record CreateListingReviewRequest(
         @Max(5)
         Integer rating,
 
+        @NotBlank
+        String comment,
+
         @Size(max = 5)
         Set<
                 @NotBlank

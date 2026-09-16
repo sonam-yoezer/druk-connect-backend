@@ -4,9 +4,11 @@ import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
-public record ListingReviewResponse(
+public record ReviewModerationResponse(
 
         UUID reviewId,
+
+        UUID listingId,
 
         UUID reviewerUserId,
 
@@ -18,7 +20,15 @@ public record ListingReviewResponse(
 
         Set<String> tags,
 
-        Instant submittedAt
+        String status,
+
+        String rejectionReason,
+
+        Instant submittedAt,
+
+        Instant moderatedAt,
+
+        String message
 
 ) {
 }
