@@ -34,15 +34,40 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public TokenResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        return authService.login(request, RequestMetadata.from(httpRequest));
+    public LoginResponse login(
+
+            @Valid
+            @RequestBody
+            LoginRequest request,
+
+            HttpServletRequest httpRequest
+    ) {
+
+        return authService.login(
+                request,
+                RequestMetadata.from(
+                        httpRequest
+                )
+        );
     }
 
     @PostMapping("/refresh")
-    public TokenResponse refresh(@Valid @RequestBody RefreshTokenRequest request, HttpServletRequest httpRequest) {
-        return authService.refresh(request, RequestMetadata.from(httpRequest));
-    }
+    public TokenResponse refresh(
 
+            @Valid
+            @RequestBody
+            RefreshTokenRequest request,
+
+            HttpServletRequest httpRequest
+    ) {
+
+        return authService.refresh(
+                request,
+                RequestMetadata.from(
+                        httpRequest
+                )
+        );
+    }
     @PostMapping("/logout")
     public MessageResponse logout(@AuthenticationPrincipal Jwt jwt, HttpServletRequest httpRequest) {
         return authService.logout(jwt, RequestMetadata.from(httpRequest));

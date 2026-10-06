@@ -325,4 +325,138 @@ public class VouchController {
                         userId
                 );
     }
+
+    /*
+     * =========================================================
+     * BUYER - GET PEOPLE I HAVE VOUCHED FOR
+     * =========================================================
+     */
+    @GetMapping("/me/given-vouches")
+    public BuyerVouchesResponse getMyGivenVouches(
+
+            @AuthenticationPrincipal
+            Jwt jwt
+
+    ) {
+
+        UUID buyerUserId =
+                UUID.fromString(
+                        jwt.getSubject()
+                );
+
+        return vouchService
+                .getMyGivenVouches(
+                        buyerUserId
+                );
+    }
+
+    /*
+     * =========================================================
+     * BUYER - REQUEST VOUCH WITHDRAWAL
+     * =========================================================
+     */
+    @PostMapping(
+            "/vouches/{vouchId}/withdraw"
+    )
+    public VouchWithdrawalResponse requestWithdrawal(
+
+            @AuthenticationPrincipal
+            Jwt jwt,
+
+            @PathVariable
+            UUID vouchId,
+
+            @Valid
+            @RequestBody
+            RequestVouchWithdrawalRequest request,
+
+            HttpServletRequest httpRequest
+
+    ) {
+
+        UUID buyerUserId =
+                UUID.fromString(
+                        jwt.getSubject()
+                );
+
+        return vouchService
+                .requestVouchWithdrawal(
+                        buyerUserId,
+                        vouchId,
+                        request,
+                        RequestMetadata.from(
+                                httpRequest
+                        )
+                );
+    }
+
+    /*
+     * =========================================================
+     * GET PENDING WITHDRAWALS
+     * =========================================================
+     */
+    @GetMapping("/getPendingWithdrawals")
+    public PagedAdminVouchWithdrawalResponse
+    getPendingWithdrawals(
+
+            @RequestParam(
+                    defaultValue = "1"
+            )
+            int page,
+
+            @RequestParam(
+                    defaultValue = "10"
+            )
+            int size
+
+    ) {
+
+        return vouchService
+                .getPendingWithdrawalRequests(
+                        page,
+                        size
+                );
+    }
+
+
+    /*
+     * =========================================================
+     * APPROVE / REJECT
+     * =========================================================
+     */
+    @PostMapping(
+            "/{withdrawalRequestId}/moderate"
+    )
+    public VouchWithdrawalModerationResponse
+    moderateWithdrawal(
+
+            @AuthenticationPrincipal
+            Jwt jwt,
+
+            @PathVariable
+            UUID withdrawalRequestId,
+
+            @Valid
+            @RequestBody
+            ModerateVouchWithdrawalRequest request,
+
+            HttpServletRequest httpRequest
+
+    ) {
+
+        UUID adminUserId =
+                UUID.fromString(
+                        jwt.getSubject()
+                );
+
+        return vouchService
+                .moderateWithdrawal(
+                        adminUserId,
+                        withdrawalRequestId,
+                        request,
+                        RequestMetadata.from(
+                                httpRequest
+                        )
+                );
+    }
 }

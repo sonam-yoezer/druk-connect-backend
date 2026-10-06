@@ -5,24 +5,17 @@ import com.drukconnect.drukconnect.common.IdentityNormalizer;
 import com.drukconnect.drukconnect.common.RequestMetadata;
 import com.drukconnect.drukconnect.config.AppProperties;
 import com.drukconnect.drukconnect.dto.authentication.*;
-import com.drukconnect.drukconnect.entity.authentication.User;
-import com.drukconnect.drukconnect.entity.authentication.Vouch;
-import com.drukconnect.drukconnect.entity.authentication.VouchInvitation;
-import com.drukconnect.drukconnect.entity.authentication.VouchRequestEntity;
-import com.drukconnect.drukconnect.enums.authentication.AccessTypeEnum;
-import com.drukconnect.drukconnect.enums.authentication.UserStatus;
-import com.drukconnect.drukconnect.enums.authentication.VouchInvitationStatus;
-import com.drukconnect.drukconnect.enums.authentication.VouchRequestStatus;
-import com.drukconnect.drukconnect.enums.authentication.VouchStatus;
-import com.drukconnect.drukconnect.repository.authentication.UserRepository;
-import com.drukconnect.drukconnect.repository.authentication.VouchInvitationRepository;
-import com.drukconnect.drukconnect.repository.authentication.VouchRepository;
-import com.drukconnect.drukconnect.repository.authentication.VouchRequestRepository;
+import com.drukconnect.drukconnect.entity.authentication.*;
+import com.drukconnect.drukconnect.enums.authentication.*;
+import com.drukconnect.drukconnect.repository.authentication.*;
 import com.drukconnect.drukconnect.util.VouchInvitationEmailSender;
 import com.drukconnect.drukconnect.util.VouchRequestEmailSender;
 import com.drukconnect.drukconnect.util.VouchSuccessEmailSender;
+import com.drukconnect.drukconnect.util.VouchWithdrawalEmailSender;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +45,12 @@ public class VouchService {
 
     @Autowired
     private VouchRequestEmailSender vouchRequestEmailSender;
+
+    @Autowired
+    private VouchWithdrawalRequestRepository vouchWithdrawalRequestRepository;
+
+    @Autowired
+    private VouchWithdrawalEmailSender vouchWithdrawalEmailSender;
 
     private final SecureRandom secureRandom =
             new SecureRandom();
@@ -1600,5 +1599,701 @@ public class VouchService {
                 remainingVouches,
                 requirementMet
         );
+    }
+
+    @Transactional(readOnly = true)
+    public BuyerVouchesResponse getMyGivenVouches(
+            UUID buyerUserId
+    ) {
+
+        User buyer =
+                userRepository
+                        .findById(
+                                buyerUserId
+                        )
+                        .orElseThrow(() ->
+                                new ApiException(
+                                        HttpStatus.NOT_FOUND,
+                                        "USER_NOT_FOUND",
+                                        "User not found"
+                                )
+                        );
+
+        if (
+                buyer.getAccessType()
+                        != AccessTypeEnum.BUYER
+        ) {
+
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "BUYER_REQUIRED",
+                    "Only Buyer accounts can view given vouches"
+            );
+        }
+
+        List<Vouch> vouches =
+                vouchRepository
+                        .findByVoucherUserIdAndStatusOrderByVouchedAtDesc(
+                                buyerUserId,
+                                VouchStatus.ACTIVE
+                        );
+
+        List<BuyerVouchResponse> responses =
+                vouches
+                        .stream()
+                        .map(
+                                vouch -> {
+
+                                    User lister =
+                                            vouch.getVouchedUser();
+
+                                    boolean withdrawalPending =
+                                            vouchWithdrawalRequestRepository
+                                                    .existsByVouchIdAndStatus(
+                                                            vouch.getId(),
+                                                            VouchWithdrawalStatus.PENDING
+                                                    );
+
+                                    return new BuyerVouchResponse(
+
+                                            vouch.getId(),
+
+                                            lister.getId(),
+
+                                            fullName(
+                                                    lister
+                                            ),
+
+                                            lister.getEmail(),
+
+                                            lister.getPhoneNumber(),
+
+                                            vouch.getStatus()
+                                                    .name(),
+
+                                            vouch.getVouchedAt(),
+
+                                            withdrawalPending
+                                    );
+                                }
+                        )
+                        .toList();
+
+        return new BuyerVouchesResponse(
+                responses.size(),
+                responses
+        );
+    }
+
+    @Transactional
+    public VouchWithdrawalResponse requestVouchWithdrawal(
+
+            UUID buyerUserId,
+
+            UUID vouchId,
+
+            RequestVouchWithdrawalRequest request,
+
+            RequestMetadata meta
+    ) {
+
+        User buyer =
+                userRepository
+                        .findById(
+                                buyerUserId
+                        )
+                        .orElseThrow(() ->
+                                new ApiException(
+                                        HttpStatus.NOT_FOUND,
+                                        "USER_NOT_FOUND",
+                                        "Buyer not found"
+                                )
+                        );
+
+        if (
+                buyer.getAccessType()
+                        != AccessTypeEnum.BUYER
+        ) {
+
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "BUYER_REQUIRED",
+                    "Only Buyer accounts can request a vouch withdrawal"
+            );
+        }
+
+
+        /*
+         * =========================================================
+         * FIND ACTIVE VOUCH OWNED BY THIS BUYER
+         * =========================================================
+         */
+        Vouch vouch =
+                vouchRepository
+                        .findByIdAndVoucherUserIdAndStatus(
+                                vouchId,
+                                buyerUserId,
+                                VouchStatus.ACTIVE
+                        )
+                        .orElseThrow(() ->
+                                new ApiException(
+                                        HttpStatus.NOT_FOUND,
+                                        "VOUCH_NOT_FOUND",
+                                        "Active vouch not found"
+                                )
+                        );
+
+
+        /*
+         * =========================================================
+         * PREVENT DUPLICATE PENDING REQUEST
+         * =========================================================
+         */
+        if (
+                vouchWithdrawalRequestRepository
+                        .existsByVouchIdAndStatus(
+                                vouchId,
+                                VouchWithdrawalStatus.PENDING
+                        )
+        ) {
+
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "WITHDRAWAL_ALREADY_PENDING",
+                    "A withdrawal request for this vouch is already pending admin review"
+            );
+        }
+
+
+        /*
+         * =========================================================
+         * CREATE REQUEST
+         * =========================================================
+         */
+        VouchWithdrawalRequest withdrawal =
+                new VouchWithdrawalRequest();
+
+        withdrawal.setVouch(
+                vouch
+        );
+
+        withdrawal.setRequestedBy(
+                buyer
+        );
+
+        withdrawal.setReason(
+                request.reason()
+                        .trim()
+        );
+
+        withdrawal.setStatus(
+                VouchWithdrawalStatus.PENDING
+        );
+
+        withdrawal =
+                vouchWithdrawalRequestRepository
+                        .saveAndFlush(
+                                withdrawal
+                        );
+
+
+        User lister =
+                vouch.getVouchedUser();
+
+
+        auditService.log(
+                "VOUCH_WITHDRAWAL_REQUESTED",
+                buyer.getId(),
+                null,
+                lister.getId(),
+                null,
+                meta,
+                "{"
+                        + "\"vouchId\":\""
+                        + vouch.getId()
+                        + "\","
+                        + "\"withdrawalRequestId\":\""
+                        + withdrawal.getId()
+                        + "\""
+                        + "}"
+        );
+
+
+        /*
+         * =========================================================
+         * NOTIFY ADMINS
+         * =========================================================
+         *
+         * Email failure must NOT rollback request.
+         */
+        try {
+
+            vouchWithdrawalEmailSender
+                    .notifyAdminsOfWithdrawalRequest(
+                            withdrawal
+                    );
+
+        } catch (Exception ex) {
+
+            auditService.log(
+                    "VOUCH_WITHDRAWAL_ADMIN_EMAIL_FAILED",
+                    buyer.getId(),
+                    null,
+                    lister.getId(),
+                    null,
+                    meta,
+                    "{\"withdrawalRequestId\":\""
+                            + withdrawal.getId()
+                            + "\"}"
+            );
+        }
+
+
+        return new VouchWithdrawalResponse(
+
+                withdrawal.getId(),
+
+                vouch.getId(),
+
+                buyer.getId(),
+
+                fullName(
+                        buyer
+                ),
+
+                lister.getId(),
+
+                fullName(
+                        lister
+                ),
+
+                withdrawal.getReason(),
+
+                withdrawal.getStatus()
+                        .name(),
+
+                withdrawal.getRequestedAt(),
+
+                "Vouch withdrawal request submitted successfully and is awaiting admin approval."
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public PagedAdminVouchWithdrawalResponse
+    getPendingWithdrawalRequests(
+
+            int page,
+
+            int size
+
+    ) {
+
+        int safePage =
+                Math.max(
+                        page,
+                        1
+                );
+
+        int safeSize =
+                Math.min(
+                        Math.max(
+                                size,
+                                1
+                        ),
+                        50
+                );
+
+        Pageable pageable =
+                PageRequest.of(
+                        safePage - 1,
+                        safeSize
+                );
+
+        Page<VouchWithdrawalRequest> result =
+                vouchWithdrawalRequestRepository
+                        .findByStatusOrderByRequestedAtAsc(
+                                VouchWithdrawalStatus.PENDING,
+                                pageable
+                        );
+
+        List<AdminVouchWithdrawalResponse> requests =
+                result
+                        .getContent()
+                        .stream()
+                        .map(
+                                withdrawal -> {
+
+                                    Vouch vouch =
+                                            withdrawal.getVouch();
+
+                                    User buyer =
+                                            vouch.getVoucherUser();
+
+                                    User lister =
+                                            vouch.getVouchedUser();
+
+                                    return new AdminVouchWithdrawalResponse(
+
+                                            withdrawal.getId(),
+
+                                            vouch.getId(),
+
+                                            buyer.getId(),
+
+                                            fullName(
+                                                    buyer
+                                            ),
+
+                                            buyer.getEmail(),
+
+                                            buyer.getPhoneNumber(),
+
+                                            lister.getId(),
+
+                                            fullName(
+                                                    lister
+                                            ),
+
+                                            lister.getEmail(),
+
+                                            lister.getPhoneNumber(),
+
+                                            withdrawal.getReason(),
+
+                                            withdrawal.getStatus()
+                                                    .name(),
+
+                                            vouch.getVouchedAt(),
+
+                                            withdrawal.getRequestedAt()
+                                    );
+                                }
+                        )
+                        .toList();
+
+        return new PagedAdminVouchWithdrawalResponse(
+
+                requests,
+
+                result.getNumber() + 1,
+
+                result.getSize(),
+
+                result.getTotalElements(),
+
+                result.getTotalPages(),
+
+                result.hasNext(),
+
+                result.hasPrevious()
+        );
+    }
+
+    @Transactional
+    public VouchWithdrawalModerationResponse moderateWithdrawal(
+
+            UUID adminUserId,
+
+            UUID withdrawalRequestId,
+
+            ModerateVouchWithdrawalRequest request,
+
+            RequestMetadata meta
+
+    ) {
+
+        User admin =
+                userRepository
+                        .findById(
+                                adminUserId
+                        )
+                        .orElseThrow(() ->
+                                new ApiException(
+                                        HttpStatus.NOT_FOUND,
+                                        "ADMIN_NOT_FOUND",
+                                        "Admin user not found"
+                                )
+                        );
+
+
+        VouchWithdrawalRequest withdrawal =
+                vouchWithdrawalRequestRepository
+                        .findByIdAndStatus(
+                                withdrawalRequestId,
+                                VouchWithdrawalStatus.PENDING
+                        )
+                        .orElseThrow(() ->
+                                new ApiException(
+                                        HttpStatus.NOT_FOUND,
+                                        "WITHDRAWAL_REQUEST_NOT_FOUND",
+                                        "Pending vouch withdrawal request not found"
+                                )
+                        );
+
+
+        Vouch vouch =
+                withdrawal.getVouch();
+
+        User buyer =
+                vouch.getVoucherUser();
+
+        User lister =
+                vouch.getVouchedUser();
+
+        Instant now =
+                Instant.now();
+
+
+        /*
+         * =========================================================
+         * APPROVE
+         * =========================================================
+         */
+        if (
+                request.action()
+                        == VouchWithdrawalAction.APPROVE
+        ) {
+
+            /*
+             * Vouch must still be ACTIVE.
+             */
+            if (
+                    vouch.getStatus()
+                            != VouchStatus.ACTIVE
+            ) {
+
+                throw new ApiException(
+                        HttpStatus.CONFLICT,
+                        "VOUCH_NOT_ACTIVE",
+                        "This vouch is no longer active"
+                );
+            }
+
+
+            /*
+             * Actual withdrawal happens here.
+             */
+            vouch.setStatus(
+                    VouchStatus.WITHDRAWN
+            );
+
+            vouchRepository.saveAndFlush(
+                    vouch
+            );
+
+
+            withdrawal.setStatus(
+                    VouchWithdrawalStatus.APPROVED
+            );
+
+            withdrawal.setModeratedBy(
+                    admin
+            );
+
+            withdrawal.setModeratedAt(
+                    now
+            );
+
+            withdrawal.setAdminReason(
+                    request.reason() == null
+                            ? null
+                            : request.reason()
+                            .trim()
+            );
+
+            withdrawal =
+                    vouchWithdrawalRequestRepository
+                            .saveAndFlush(
+                                    withdrawal
+                            );
+
+
+            long remainingActiveVouches =
+                    vouchRepository
+                            .countActiveVouchesByUserId(
+                                    lister.getId()
+                            );
+
+
+            auditService.log(
+                    "VOUCH_WITHDRAWAL_APPROVED",
+                    adminUserId,
+                    null,
+                    lister.getId(),
+                    null,
+                    meta,
+                    "{"
+                            + "\"vouchId\":\""
+                            + vouch.getId()
+                            + "\","
+                            + "\"withdrawalRequestId\":\""
+                            + withdrawal.getId()
+                            + "\","
+                            + "\"remainingActiveVouches\":"
+                            + remainingActiveVouches
+                            + "}"
+            );
+
+
+            /*
+             * ---------------------------------------------
+             * Notify BUYER and LISTER.
+             * ---------------------------------------------
+             */
+            try {
+
+                vouchWithdrawalEmailSender
+                        .sendApprovedEmails(
+                                buyer,
+                                lister,
+                                withdrawal,
+                                remainingActiveVouches
+                        );
+
+            } catch (Exception ignored) {
+
+                /*
+                 * Never rollback approval because email failed.
+                 */
+            }
+
+
+            return new VouchWithdrawalModerationResponse(
+
+                    withdrawal.getId(),
+
+                    vouch.getId(),
+
+                    withdrawal.getStatus()
+                            .name(),
+
+                    withdrawal.getAdminReason(),
+
+                    withdrawal.getModeratedAt(),
+
+                    "Vouch withdrawal approved successfully."
+            );
+        }
+
+
+        /*
+         * =========================================================
+         * REJECT
+         * =========================================================
+         */
+        if (
+                request.action()
+                        == VouchWithdrawalAction.REJECT
+        ) {
+
+            if (
+                    request.reason() == null
+                            ||
+                            request.reason()
+                                    .isBlank()
+            ) {
+
+                throw new ApiException(
+                        HttpStatus.BAD_REQUEST,
+                        "REJECTION_REASON_REQUIRED",
+                        "A reason is required when rejecting a vouch withdrawal request"
+                );
+            }
+
+
+            /*
+             * IMPORTANT:
+             *
+             * Vouch remains ACTIVE.
+             */
+            withdrawal.setStatus(
+                    VouchWithdrawalStatus.REJECTED
+            );
+
+            withdrawal.setModeratedBy(
+                    admin
+            );
+
+            withdrawal.setModeratedAt(
+                    now
+            );
+
+            withdrawal.setAdminReason(
+                    request.reason()
+                            .trim()
+            );
+
+            withdrawal =
+                    vouchWithdrawalRequestRepository
+                            .saveAndFlush(
+                                    withdrawal
+                            );
+
+
+            auditService.log(
+                    "VOUCH_WITHDRAWAL_REJECTED",
+                    adminUserId,
+                    null,
+                    buyer.getId(),
+                    null,
+                    meta,
+                    "{"
+                            + "\"vouchId\":\""
+                            + vouch.getId()
+                            + "\","
+                            + "\"withdrawalRequestId\":\""
+                            + withdrawal.getId()
+                            + "\""
+                            + "}"
+            );
+
+
+            try {
+
+                vouchWithdrawalEmailSender
+                        .sendRejectedEmail(
+                                buyer,
+                                lister,
+                                withdrawal
+                        );
+
+            } catch (Exception ignored) {
+            }
+
+
+            return new VouchWithdrawalModerationResponse(
+
+                    withdrawal.getId(),
+
+                    vouch.getId(),
+
+                    withdrawal.getStatus()
+                            .name(),
+
+                    withdrawal.getAdminReason(),
+
+                    withdrawal.getModeratedAt(),
+
+                    "Vouch withdrawal request rejected."
+            );
+        }
+
+
+        throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "INVALID_WITHDRAWAL_ACTION",
+                "Invalid vouch withdrawal moderation action"
+        );
+    }
+
+    private String fullName(
+            User user
+    ) {
+
+        return (
+                user.getFirstName()
+                        + " "
+                        + user.getLastName()
+        ).trim();
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface VouchRepository extends JpaRepository<Vouch, UUID> {
@@ -26,5 +27,17 @@ public interface VouchRepository extends JpaRepository<Vouch, UUID> {
             UUID vouchedUserId,
             VouchStatus status
     );
+
+    List<Vouch> findByVoucherUserIdAndStatusOrderByVouchedAtDesc(
+            UUID voucherUserId,
+            VouchStatus status
+    );
+
+    Optional<Vouch> findByIdAndVoucherUserIdAndStatus(
+            UUID id,
+            UUID voucherUserId,
+            VouchStatus status
+    );
+
 
 }

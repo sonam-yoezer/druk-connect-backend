@@ -3,6 +3,7 @@ package com.drukconnect.drukconnect.repository.authentication;
 import com.drukconnect.drukconnect.entity.authentication.User;
 import com.drukconnect.drukconnect.enums.authentication.AccessTypeEnum;
 import com.drukconnect.drukconnect.enums.authentication.UserStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -41,4 +42,51 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             Pageable pageable
     );
 
+    @Query("""
+        SELECT DISTINCT u
+        FROM User u
+        JOIN UserRole ur
+            ON ur.user.id = u.id
+        JOIN Role r
+            ON ur.role.id = r.id
+        WHERE r.code = 'ADMIN'
+        AND r.active = true
+        AND u.status =
+            com.drukconnect.drukconnect.enums.authentication.UserStatus.ACTIVE
+        """)
+    List<User> findActiveAdmins();
+
+    @Query("""
+        SELECT u
+        FROM User u
+        WHERE u.accessType = :accessType
+          AND u.status = :status
+          AND (
+                :query = ''
+                OR LOWER(u.firstName)
+                    LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(u.lastName)
+                    LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(CONCAT(u.firstName, ' ', u.lastName))
+                    LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(u.email)
+                    LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(u.phoneNumber)
+                    LIKE LOWER(CONCAT('%', :query, '%'))
+          )
+        ORDER BY u.firstName ASC, u.lastName ASC
+        """)
+    Page<User> searchActiveBuyers(
+
+            @Param("accessType")
+            AccessTypeEnum accessType,
+
+            @Param("status")
+            UserStatus status,
+
+            @Param("query")
+            String query,
+
+            Pageable pageable
+    );
 }

@@ -11,11 +11,21 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface VouchRequestRepository extends JpaRepository<VouchRequestEntity, UUID> {
-    boolean existsByRequesterIdAndTargetIdAndStatus(UUID requesterId, UUID targetId, VouchRequestStatus status);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<VouchRequestEntity> findByIdAndStatus(UUID id, VouchRequestStatus status);
 
     List<VouchRequestEntity> findByTargetIdOrderByRequestedAtDesc(
             UUID targetId
+    );
+
+    boolean existsByRequesterIdAndTargetIdAndStatus(
+            UUID requesterId,
+            UUID targetId,
+            VouchRequestStatus status
+    );
+
+    long countByRequesterIdAndStatus(
+            UUID requesterId,
+            VouchRequestStatus status
     );
 }
