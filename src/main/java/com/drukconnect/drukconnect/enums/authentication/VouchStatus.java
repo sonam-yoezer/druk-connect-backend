@@ -1,2 +1,2 @@
 package com.drukconnect.drukconnect.enums.authentication;
-public enum VouchStatus { ACTIVE, REVOKED }
+public enum VouchStatus { ACTIVE, REVOKED, WITHDRAWN }

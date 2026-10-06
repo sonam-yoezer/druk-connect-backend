@@ -217,4 +217,27 @@ public class OpenApiConfig {
 
                 .build();
     }
+
+    @Bean
+    public GroupedOpenApi vouchRecovery() {
+
+        return GroupedOpenApi.builder()
+
+                .group("Vouch Recovery")
+                .displayName("Review APIs")
+
+                .pathsToMatch(
+                        "/api/v1/vouch-recovery/**"
+                )
+
+                .addOpenApiMethodFilter(
+                        method ->
+                                ListingReviewController.class
+                                        .isAssignableFrom(
+                                                method.getDeclaringClass()
+                                        )
+                )
+
+                .build();
+    }
 }

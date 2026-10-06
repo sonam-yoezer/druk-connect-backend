@@ -7,9 +7,11 @@ import com.drukconnect.drukconnect.config.AppProperties;
 import com.drukconnect.drukconnect.dto.authentication.*;
 import com.drukconnect.drukconnect.entity.authentication.*;
 import com.drukconnect.drukconnect.enums.authentication.AccessTypeEnum;
+import com.drukconnect.drukconnect.enums.authentication.LoginStatus;
 import com.drukconnect.drukconnect.enums.authentication.OtpChannel;
 import com.drukconnect.drukconnect.enums.authentication.UserStatus;
 import com.drukconnect.drukconnect.repository.authentication.*;
+import com.drukconnect.drukconnect.security.VouchRecoveryTokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,6 +40,9 @@ public class AuthService {
 
     @Autowired
     private VouchService vouchService;
+
+    @Autowired
+    private VouchRecoveryTokenService vouchRecoveryTokenService;
 
     @Autowired
     private VouchRepository vouchRepository;
@@ -570,24 +575,36 @@ public class AuthService {
     }
 
     @Transactional(noRollbackFor = ApiException.class)
-    public TokenResponse login(
+    public LoginResponse login(
             LoginRequest request,
             RequestMetadata meta
     ) {
 
+        final long requiredVouches =
+                2L;
+
+        /*
+         * =========================================================
+         * NORMALIZE LOGIN IDENTIFIER
+         * =========================================================
+         */
         String rawIdentifier =
-                request.identifier().trim();
+                request.identifier()
+                        .trim();
 
         User user;
 
         String normalized;
+
 
         /*
          * =========================================================
          * FIND USER
          * =========================================================
          */
-        if (rawIdentifier.contains("@")) {
+        if (
+                rawIdentifier.contains("@")
+        ) {
 
             normalized =
                     IdentityNormalizer.email(
@@ -599,7 +616,9 @@ public class AuthService {
                             .findByEmailIgnoreCase(
                                     normalized
                             )
-                            .orElse(null);
+                            .orElse(
+                                    null
+                            );
 
         } else {
 
@@ -613,8 +632,11 @@ public class AuthService {
                             .findByPhoneNumber(
                                     normalized
                             )
-                            .orElse(null);
+                            .orElse(
+                                    null
+                            );
         }
+
 
         /*
          * =========================================================
@@ -630,35 +652,60 @@ public class AuthService {
                         )
         ) {
 
-            if (user != null) {
+            /*
+             * Increase failed login count only when
+             * we know which user was attempted.
+             */
+            if (
+                    user != null
+            ) {
 
                 user.setFailedLoginAttempts(
-                        user.getFailedLoginAttempts() + 1
+                        user.getFailedLoginAttempts()
+                                + 1
                 );
 
-                userRepository.save(user);
+                userRepository.save(
+                        user
+                );
             }
 
+
+            /*
+             * Audit failed login.
+             */
             auditService.log(
+
                     "LOGIN_FAILED",
+
                     user == null
                             ? null
                             : user.getId(),
+
                     null,
+
                     null,
+
                     IdentityNormalizer.maskIdentifier(
                             normalized
                     ),
+
                     meta,
+
                     "{\"reason\":\"BAD_CREDENTIALS\"}"
             );
 
+
             throw new ApiException(
+
                     HttpStatus.UNAUTHORIZED,
+
                     "BAD_CREDENTIALS",
+
                     "Invalid email/phone number or password"
             );
         }
+
 
         /*
          * =========================================================
@@ -666,19 +713,30 @@ public class AuthService {
          * =========================================================
          */
         if (
-                properties.auth().requireEmailOtp()
+                properties
+                        .auth()
+                        .requireEmailOtp()
+
                         &&
-                        user.getEmailVerifiedAt() == null
+
+                        user.getEmailVerifiedAt()
+                                == null
         ) {
 
             throw loginBlocked(
+
                     user,
+
                     normalized,
+
                     meta,
+
                     "EMAIL_NOT_VERIFIED",
+
                     "Verify your email address before logging in"
             );
         }
+
 
         /*
          * =========================================================
@@ -691,24 +749,79 @@ public class AuthService {
         ) {
 
             throw loginBlocked(
+
                     user,
+
                     normalized,
+
                     meta,
+
                     "ACCOUNT_NOT_ACTIVE",
+
                     "This account is not active"
             );
         }
 
+
         /*
          * =========================================================
-         * ACCESS TYPE VALIDATION
+         * LOAD SECURITY ROLES
+         *
+         * We load roles BEFORE checking vouches because
+         * the recovery response also needs UserSummary.
+         * =========================================================
+         */
+        List<String> roles =
+                userRoleRepository
+                        .findRoleCodesByUserId(
+                                user.getId()
+                        );
+
+
+        /*
+         * =========================================================
+         * BUILD USER SUMMARY
+         * =========================================================
+         */
+        UserSummary userSummary =
+                new UserSummary(
+
+                        user.getId(),
+
+                        user.getFirstName(),
+
+                        user.getLastName(),
+
+                        user.getEmail(),
+
+                        user.getPhoneNumber(),
+
+                        user.getAccessType(),
+
+                        roles
+                );
+
+
+        /*
+         * =========================================================
+         * LISTER VOUCH ELIGIBILITY CHECK
          * =========================================================
          *
          * BUYER:
-         * No vouch required.
+         *      no vouch requirement.
          *
          * LISTER:
-         * Minimum 2 ACTIVE vouches required.
+         *      minimum 2 ACTIVE vouches.
+         *
+         * If the LISTER has fewer than 2 vouches:
+         *
+         *      - credentials are valid
+         *      - account is ACTIVE
+         *      - DO NOT create normal session
+         *      - DO NOT create normal access token
+         *      - DO NOT create refresh token
+         *      - create only VOUCH_RECOVERY token
+         *
          * =========================================================
          */
         if (
@@ -722,41 +835,139 @@ public class AuthService {
                                     user.getId()
                             );
 
-            /*
-             * Lister requires minimum 2 vouches.
-             */
-            if (activeVouchCount < 2) {
 
+            /*
+             * ---------------------------------------------------------
+             * NOT ENOUGH ACTIVE VOUCHES
+             * ---------------------------------------------------------
+             */
+            if (
+                    activeVouchCount
+                            < requiredVouches
+            ) {
+
+                long vouchesNeeded =
+                        requiredVouches
+                                - activeVouchCount;
+
+
+                /*
+                 * Generate short-lived recovery JWT.
+                 *
+                 * This is NOT a normal access token.
+                 */
+                String recoveryToken =
+                        vouchRecoveryTokenService
+                                .createRecoveryToken(
+                                        user
+                                );
+
+
+                /*
+                 * Password was correct, so reset
+                 * failed login attempts.
+                 *
+                 * We DO NOT update lastLoginAt because
+                 * the user has not received full application access.
+                 */
+                user.setFailedLoginAttempts(
+                        0
+                );
+
+                userRepository.save(
+                        user
+                );
+
+
+                /*
+                 * -----------------------------------------------------
+                 * AUDIT RECOVERY LOGIN
+                 * -----------------------------------------------------
+                 */
                 auditService.log(
-                        "LOGIN_BLOCKED_INSUFFICIENT_VOUCHES",
+
+                        "LOGIN_VOUCH_RECOVERY_REQUIRED",
+
                         user.getId(),
+
                         null,
+
                         null,
+
                         IdentityNormalizer.maskIdentifier(
                                 normalized
                         ),
+
                         meta,
-                        "{\"accessType\":\"LISTER\","
+
+                        "{"
+                                + "\"accessType\":\"LISTER\","
                                 + "\"activeVouches\":"
                                 + activeVouchCount
-                                + ",\"requiredVouches\":2}"
+                                + ","
+                                + "\"requiredVouches\":"
+                                + requiredVouches
+                                + ","
+                                + "\"vouchesNeeded\":"
+                                + vouchesNeeded
+                                + "}"
                 );
 
-                throw new ApiException(
-                        HttpStatus.FORBIDDEN,
-                        "INSUFFICIENT_VOUCHES",
-                        "Lister accounts require at least 2 active vouches before logging in. "
-                                + "Current active vouches: "
-                                + activeVouchCount
+
+                /*
+                 * -----------------------------------------------------
+                 * RETURN VOUCH RECOVERY RESPONSE
+                 * -----------------------------------------------------
+                 *
+                 * No normal TokenResponse.
+                 * No refresh token.
+                 * No AuthSession.
+                 */
+                return new LoginResponse(
+
+                        LoginStatus.VOUCH_REQUIRED,
+
+                        null,
+
+                        recoveryToken,
+
+                        vouchRecoveryTokenService
+                                .expiresInSeconds(),
+
+                        activeVouchCount,
+
+                        requiredVouches,
+
+                        vouchesNeeded,
+
+                        userSummary,
+
+                        "Your account requires "
+                                + vouchesNeeded
+                                + " more active vouch"
+                                + (
+                                vouchesNeeded == 1
+                                        ? ""
+                                        : "es"
+                        )
+                                + " before full access can be restored."
                 );
             }
         }
 
+
         /*
          * =========================================================
-         * LOGIN SUCCESS
+         * NORMAL LOGIN SUCCESS
+         * =========================================================
+         *
+         * BUYER reaches here directly.
+         *
+         * LISTER reaches here only when they
+         * have at least 2 active vouches.
          * =========================================================
          */
+
         user.setFailedLoginAttempts(
                 0
         );
@@ -765,65 +976,116 @@ public class AuthService {
                 Instant.now()
         );
 
-        userRepository.save(user);
+        userRepository.save(
+                user
+        );
+
 
         /*
          * =========================================================
-         * LOAD SECURITY ROLES
+         * CREATE SESSION + NORMAL TOKENS
+         * =========================================================
+         *
+         * Your existing helper remains unchanged.
+         *
+         * It creates:
+         *
+         * - AuthSession
+         * - access token
+         * - refresh token
+         * - access JTI
+         * - expiry values
+         *
          * =========================================================
          */
-        List<String> roles =
-                userRoleRepository
-                        .findRoleCodesByUserId(
-                                user.getId()
-                        );
-
-        /*
-         * =========================================================
-         * CREATE SESSION + TOKENS
-         * =========================================================
-         */
-        TokenResponse response =
+        TokenResponse tokenResponse =
                 createSessionAndTokens(
+
                         user,
+
                         roles,
+
                         meta
                 );
 
+
+        /*
+         * =========================================================
+         * GET NEW SESSION ID FOR AUDIT
+         * =========================================================
+         */
         UUID sessionId =
                 sessionRepository
                         .findByRefreshTokenHashAndRevokedAtIsNull(
+
                                 refreshTokenService.hash(
-                                        response.refreshToken()
+                                        tokenResponse.refreshToken()
                                 )
                         )
                         .orElseThrow(() ->
+
                                 new IllegalStateException(
                                         "New authentication session was not persisted"
                                 )
                         )
                         .getId();
 
+
         /*
          * =========================================================
-         * AUDIT LOGIN SUCCESS
+         * AUDIT NORMAL LOGIN SUCCESS
          * =========================================================
          */
         auditService.log(
+
                 "LOGIN_SUCCESS",
+
                 user.getId(),
+
                 sessionId,
+
                 null,
+
                 IdentityNormalizer.maskIdentifier(
                         normalized
                 ),
+
                 meta,
-                "{\"accessType\":\""
+
+                "{"
+                        + "\"accessType\":\""
                         + user.getAccessType()
-                        + "\"}"
+                        + "\","
+                        + "\"activeSession\":true"
+                        + "}"
         );
 
-        return response;
+
+        /*
+         * =========================================================
+         * RETURN NORMAL LOGIN
+         * =========================================================
+         */
+        return new LoginResponse(
+
+                LoginStatus.AUTHENTICATED,
+
+                tokenResponse,
+
+                null,
+
+                null,
+
+                null,
+
+                null,
+
+                null,
+
+                tokenResponse.user(),
+
+                "Login successful."
+        );
     }
 
     @Transactional(noRollbackFor = ApiException.class)
