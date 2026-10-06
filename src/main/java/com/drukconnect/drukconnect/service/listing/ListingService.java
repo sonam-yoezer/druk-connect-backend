@@ -182,8 +182,28 @@ public class ListingService {
                         .trim()
         );
 
-        listing.setCity(
-                request.city()
+        listing.setListingTitle(
+                request.listingTitle()
+                        .trim()
+        );
+
+        listing.setListingCategory(
+                request.listingCategory()
+                        .trim()
+        );
+
+        listing.setSuburb(
+                request.suburb()
+                        .trim()
+        );
+
+        listing.setState(
+                request.state()
+                        .trim()
+        );
+
+        listing.setPostcode(
+                request.postcode()
                         .trim()
         );
 
@@ -192,22 +212,14 @@ public class ListingService {
                         .trim()
         );
 
-        listing.setCuisine(
-                request.cuisine()
+        listing.setServiceType(
+                request.serviceType()
                         .trim()
         );
 
         listing.setServiceType(
                 request.serviceType()
                         .trim()
-        );
-
-        listing.setMinimumOrder(
-                request.minimumOrder()
-        );
-
-        listing.setServes(
-                request.serves()
         );
 
         listing.setDietaryOptions(
@@ -482,9 +494,11 @@ public class ListingService {
 
                 listing.getListingCategory(),
 
-                listing.getCity(),
+                listing.getSuburb(),
 
-                listing.getCuisine(),
+                listing.getState(),
+
+                listing.getPostcode(),
 
                 listing.getServiceType(),
 
@@ -657,17 +671,15 @@ public class ListingService {
 
                 listing.getListingCategory(),
 
-                listing.getCity(),
+                listing.getSuburb(),
+
+                listing.getState(),
+
+                listing.getPostcode(),
 
                 listing.getDescription(),
 
-                listing.getCuisine(),
-
                 listing.getServiceType(),
-
-                listing.getMinimumOrder(),
-
-                listing.getServes(),
 
                 dietaryOptions,
 
@@ -944,9 +956,11 @@ public class ListingService {
 
                 listing.getListingCategory(),
 
-                listing.getCity(),
+                listing.getSuburb(),
 
-                listing.getCuisine(),
+                listing.getState(),
+
+                listing.getPostcode(),
 
                 listing.getServiceType(),
 
@@ -1224,7 +1238,11 @@ public class ListingService {
 
             String category,
 
-            String city,
+            String suburb,
+
+            String state,
+
+            String postcode,
 
             String query,
 
@@ -1282,9 +1300,19 @@ public class ListingService {
                         category
                 );
 
-        String normalizedCity =
+        String normalizedSuburb =
                 normalizeSearchValue(
-                        city
+                        suburb
+                );
+
+        String normalizedState =
+                normalizeSearchValue(
+                        state
+                );
+
+        String normalizedPostcode =
+                normalizeSearchValue(
+                        postcode
                 );
 
         String normalizedQuery =
@@ -1321,13 +1349,16 @@ public class ListingService {
 
                                 normalizedCategory,
 
-                                normalizedCity,
+                                normalizedSuburb,
+
+                                normalizedState,
+
+                                normalizedPostcode,
 
                                 normalizedQuery,
 
                                 pageable
                         );
-
 
         /*
          * =========================================================

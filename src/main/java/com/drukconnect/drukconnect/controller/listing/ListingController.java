@@ -313,7 +313,17 @@ public class ListingController {
             @RequestParam(
                     required = false
             )
-            String city,
+            String suburb,
+
+            @RequestParam(
+                    required = false
+            )
+            String state,
+
+            @RequestParam(
+                    required = false
+            )
+            String postcode,
 
             @RequestParam(
                     name = "q",
@@ -337,7 +347,11 @@ public class ListingController {
 
                         category,
 
-                        city,
+                        suburb,
+
+                        state,
+
+                        postcode,
 
                         query,
 

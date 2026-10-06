@@ -17,17 +17,15 @@ public record ListingDetailResponse(
 
         String listingCategory,
 
-        String city,
+        String suburb,
+
+        String state,
+
+        String postcode,
 
         String description,
 
-        String cuisine,
-
         String serviceType,
-
-        Integer minimumOrder,
-
-        Integer serves,
 
         Set<String> dietaryOptions,
 
