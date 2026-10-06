@@ -69,8 +69,18 @@ public interface ListingRepository
         )
 
         AND (
-            :city IS NULL
-            OR LOWER(l.city) = LOWER(:city)
+            :suburb IS NULL
+            OR LOWER(l.suburb) = LOWER(:suburb)
+        )
+
+        AND (
+            :state IS NULL
+            OR LOWER(l.state) = LOWER(:state)
+        )
+
+        AND (
+            :postcode IS NULL
+            OR l.postcode = :postcode
         )
 
         AND (
@@ -85,11 +95,17 @@ public interface ListingRepository
             OR LOWER(l.description)
                 LIKE LOWER(CONCAT('%', :query, '%'))
 
-            OR LOWER(l.cuisine)
-                LIKE LOWER(CONCAT('%', :query, '%'))
-
             OR LOWER(l.serviceType)
                 LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR LOWER(l.suburb)
+                LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR LOWER(l.state)
+                LIKE LOWER(CONCAT('%', :query, '%'))
+
+            OR l.postcode
+                LIKE CONCAT('%', :query, '%')
 
             OR LOWER(u.firstName)
                 LIKE LOWER(CONCAT('%', :query, '%'))
@@ -115,8 +131,14 @@ public interface ListingRepository
             @Param("category")
             String category,
 
-            @Param("city")
-            String city,
+            @Param("suburb")
+            String suburb,
+
+            @Param("state")
+            String state,
+
+            @Param("postcode")
+            String postcode,
 
             @Param("query")
             String query,

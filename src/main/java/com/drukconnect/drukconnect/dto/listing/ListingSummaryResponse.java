@@ -15,9 +15,11 @@ public record ListingSummaryResponse(
 
         String listingCategory,
 
-        String city,
+        String suburb,
 
-        String cuisine,
+        String state,
+
+        String postcode,
 
         String serviceType,
 

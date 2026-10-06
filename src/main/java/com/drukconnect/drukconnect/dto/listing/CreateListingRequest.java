@@ -20,26 +20,22 @@ public record CreateListingRequest(
 
         @NotBlank
         @Size(max = 120)
-        String city,
+        String suburb,
+
+        @NotBlank
+        @Size(max = 100)
+        String state,
+
+        @NotBlank
+        @Size(max = 20)
+        String postcode,
 
         @NotBlank
         String description,
 
         @NotBlank
         @Size(max = 120)
-        String cuisine,
-
-        @NotBlank
-        @Size(max = 120)
         String serviceType,
-
-        @NotNull
-        @Min(1)
-        Integer minimumOrder,
-
-        @NotNull
-        @Min(1)
-        Integer serves,
 
         Set<String> dietaryOptions,
 
