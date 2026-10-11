@@ -349,8 +349,11 @@ public class VouchService {
                                 )
                         );
 
+
         /*
-         * Only requested user can respond.
+         * =========================================================
+         * ONLY TARGET BUYER CAN RESPOND
+         * =========================================================
          */
         if (
                 !entity.getTarget()
@@ -367,13 +370,17 @@ public class VouchService {
             );
         }
 
+
         /*
-         * Target must still be active.
+         * =========================================================
+         * TARGET MUST STILL BE ACTIVE BUYER
+         * =========================================================
          */
         User target =
                 activeUser(
                         currentUserId
                 );
+
 
         if (
                 target.getAccessType()
@@ -387,17 +394,20 @@ public class VouchService {
             );
         }
 
+
         Instant now =
                 Instant.now();
+
 
         entity.setRespondedAt(
                 now
         );
 
+
         /*
-         * =====================================================
+         * =========================================================
          * ACCEPT
-         * =====================================================
+         * =========================================================
          */
         if (
                 Boolean.TRUE.equals(
@@ -405,67 +415,162 @@ public class VouchService {
                 )
         ) {
 
-            entity.setStatus(
-                    VouchRequestStatus.ACCEPTED
-            );
+            UUID buyerUserId =
+                    entity.getTarget()
+                            .getId();
 
-            requestRepository.saveAndFlush(
-                    entity
-            );
+            UUID listerUserId =
+                    entity.getRequester()
+                            .getId();
+
 
             /*
-             * Prevent duplicate active vouch.
+             * =====================================================
+             * IMPORTANT FIX
+             *
+             * Search for ANY existing vouch between this
+             * BUYER and LISTER, regardless of status.
+             * =====================================================
+             */
+            Vouch existingVouch =
+                    vouchRepository
+                            .findByVoucherUserIdAndVouchedUserId(
+                                    buyerUserId,
+                                    listerUserId
+                            )
+                            .orElse(null);
+
+
+            /*
+             * =====================================================
+             * NO PREVIOUS VOUCH
+             *
+             * Create a new row.
+             * =====================================================
              */
             if (
-                    !vouchRepository
-                            .existsByVoucherUserIdAndVouchedUserIdAndStatus(
-                                    entity.getTarget()
-                                            .getId(),
-
-                                    entity.getRequester()
-                                            .getId(),
-
-                                    VouchStatus.ACTIVE
-                            )
+                    existingVouch == null
             ) {
 
                 Vouch vouch =
                         new Vouch();
 
+
                 /*
-                 * BUYER gives vouch.
+                 * BUYER gives the vouch.
                  */
                 vouch.setVoucherUser(
                         entity.getTarget()
                 );
 
+
                 /*
-                 * LISTER receives vouch.
+                 * LISTER receives the vouch.
                  */
                 vouch.setVouchedUser(
                         entity.getRequester()
                 );
 
+
                 /*
-                 * IMPORTANT:
-                 * Your current Vouch entity uses setRequest().
+                 * Link latest accepted request.
                  */
                 vouch.setRequest(
                         entity
                 );
 
+
                 vouch.setStatus(
                         VouchStatus.ACTIVE
                 );
+
 
                 vouch.setVouchedAt(
                         now
                 );
 
-                vouchRepository.saveAndFlush(
-                        vouch
-                );
+
+                vouchRepository
+                        .saveAndFlush(
+                                vouch
+                        );
             }
+
+
+            /*
+             * =====================================================
+             * PREVIOUS VOUCH EXISTS BUT IS NOT ACTIVE
+             *
+             * Example:
+             *
+             * Buyer vouched
+             *      ↓
+             * withdrawal approved
+             *      ↓
+             * same Buyer later vouches again
+             *
+             * DO NOT INSERT ANOTHER ROW.
+             * Reactivate the existing row.
+             * =====================================================
+             */
+            else if (
+                    existingVouch.getStatus()
+                            != VouchStatus.ACTIVE
+            ) {
+
+                existingVouch.setStatus(
+                        VouchStatus.ACTIVE
+                );
+
+
+                /*
+                 * Connect it to the new accepted request.
+                 */
+                existingVouch.setRequest(
+                        entity
+                );
+
+
+                /*
+                 * New vouch/re-vouch time.
+                 */
+                existingVouch.setVouchedAt(
+                        now
+                );
+
+
+                vouchRepository
+                        .saveAndFlush(
+                                existingVouch
+                        );
+            }
+
+
+            /*
+             * =====================================================
+             * ALREADY ACTIVE
+             *
+             * existingVouch != null
+             * && status == ACTIVE
+             *
+             * No insert is performed.
+             * =====================================================
+             */
+
+
+            /*
+             * Request is successfully accepted.
+             */
+            entity.setStatus(
+                    VouchRequestStatus.ACCEPTED
+            );
+
+
+            requestRepository
+                    .saveAndFlush(
+                            entity
+                    );
+
 
             auditService.log(
                     "VOUCH_ACCEPTED",
@@ -479,13 +584,13 @@ public class VouchService {
                             + entity.getId()
                             + "\"}"
             );
-
         }
 
+
         /*
-         * =====================================================
+         * =========================================================
          * DECLINE
-         * =====================================================
+         * =========================================================
          */
         else {
 
@@ -493,9 +598,12 @@ public class VouchService {
                     VouchRequestStatus.DECLINED
             );
 
-            requestRepository.save(
-                    entity
-            );
+
+            requestRepository
+                    .saveAndFlush(
+                            entity
+                    );
+
 
             auditService.log(
                     "VOUCH_DECLINED",
@@ -510,6 +618,7 @@ public class VouchService {
                             + "\"}"
             );
         }
+
 
         return toResponse(
                 entity

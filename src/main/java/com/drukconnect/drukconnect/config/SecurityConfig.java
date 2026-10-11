@@ -604,7 +604,10 @@ public class SecurityConfig {
                                  */
                                 .requestMatchers(
                                         HttpMethod.GET,
-                                        "/api/v1/listings/me"
+                                        "/api/v1/listings/me",
+                                        "/api/v1/listings/*/review-eligibility",
+                                        "/api/v1/listings/*/review-requests",
+                                        "/api/v1/listings/*/review-requests/**"
                                 )
                                 .authenticated()
 
