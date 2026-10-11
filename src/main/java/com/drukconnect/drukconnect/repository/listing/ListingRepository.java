@@ -17,6 +17,10 @@ import java.util.UUID;
 public interface ListingRepository
         extends JpaRepository<Listing, UUID> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select l from Listing l where l.id = :id")
+    Optional<Listing> findForReviewUpdate(@Param("id") UUID id);
+
     Page<Listing> findByStatus(
             ListingStatus status,
             Pageable pageable

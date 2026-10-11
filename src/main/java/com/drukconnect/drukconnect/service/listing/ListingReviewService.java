@@ -43,6 +43,8 @@ public class ListingReviewService {
 
     private final AuditService auditService;
 
+    private final ListingReviewRequestService reviewRequestService;
+
     @Autowired
     private ReviewNotificationEmailSender reviewNotificationEmailSender;
 
@@ -50,7 +52,8 @@ public class ListingReviewService {
             ListingRepository listingRepository,
             ListingReviewRepository reviewRepository,
             UserRepository userRepository,
-            AuditService auditService
+            AuditService auditService,
+            ListingReviewRequestService reviewRequestService
     ) {
 
         this.listingRepository =
@@ -64,6 +67,7 @@ public class ListingReviewService {
 
         this.auditService =
                 auditService;
+        this.reviewRequestService = reviewRequestService;
     }
 
     /*
@@ -117,6 +121,8 @@ public class ListingReviewService {
                                         "Listing not found"
                                 )
                         );
+
+        reviewRequestService.requireReviewEligibility(buyerId, listingId);
 
         /*
          * Prevent another PENDING or APPROVED review.
@@ -181,6 +187,8 @@ public class ListingReviewService {
                         .saveAndFlush(
                                 review
                         );
+
+        reviewRequestService.markCompleted(buyerId, listingId);
 
         auditService.log(
                 "LISTING_REVIEW_SUBMITTED",
