@@ -240,4 +240,73 @@ public class OpenApiConfig {
 
                 .build();
     }
+
+    @Bean
+    public GroupedOpenApi adminListerScam() {
+
+        return GroupedOpenApi.builder()
+
+                .group("Admin lister scam")
+                .displayName("Admin lister scam APIs")
+
+                .pathsToMatch(
+                        "/api/v1/admin/lister-scam/**"
+                )
+
+                .addOpenApiMethodFilter(
+                        method ->
+                                ListingReviewController.class
+                                        .isAssignableFrom(
+                                                method.getDeclaringClass()
+                                        )
+                )
+
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi listerRestriction() {
+
+        return GroupedOpenApi.builder()
+
+                .group("Lister Restriction")
+                .displayName("Lister Restriction APIs")
+
+                .pathsToMatch(
+                        "/api/v1/lister-restrictions/**"
+                )
+
+                .addOpenApiMethodFilter(
+                        method ->
+                                ListingReviewController.class
+                                        .isAssignableFrom(
+                                                method.getDeclaringClass()
+                                        )
+                )
+
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi listerScamReport() {
+
+        return GroupedOpenApi.builder()
+
+                .group("Lister scam report")
+                .displayName("Lister scam report APIs")
+
+                .pathsToMatch(
+                        "/api/v1/listings/**"
+                )
+
+                .addOpenApiMethodFilter(
+                        method ->
+                                ListingReviewController.class
+                                        .isAssignableFrom(
+                                                method.getDeclaringClass()
+                                        )
+                )
+
+                .build();
+    }
 }
