@@ -11,6 +11,8 @@ import com.drukconnect.drukconnect.enums.listing.*;
 import com.drukconnect.drukconnect.repository.listing.*;
 import com.drukconnect.drukconnect.repository.authentication.*;
 import com.drukconnect.drukconnect.service.authentication.AuditService;
+import com.drukconnect.drukconnect.service.moderation.ListerRestrictionService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,10 @@ public class ListingService {
 
     private final AuditService auditService;
 
+    @Autowired
+    private final ListerRestrictionService
+            listerRestrictionService;
+
     public ListingService(
             ListingRepository listingRepository,
             ListingImageRepository imageRepository,
@@ -45,7 +51,7 @@ public class ListingService {
             UserRepository userRepository,
             VouchRepository vouchRepository,
             ListingImageStorageService imageStorageService,
-            AuditService auditService
+            AuditService auditService, ListerRestrictionService listerRestrictionService
     ) {
 
         this.listingRepository =
@@ -68,6 +74,7 @@ public class ListingService {
 
         this.auditService =
                 auditService;
+        this.listerRestrictionService = listerRestrictionService;
     }
 
     /*
@@ -96,6 +103,12 @@ public class ListingService {
                                 )
                         );
 
+
+        /*
+         * =========================================================
+         * ONLY LISTER CAN CREATE LISTING
+         * =========================================================
+         */
         if (
                 lister.getAccessType()
                         != AccessTypeEnum.LISTER
@@ -108,8 +121,28 @@ public class ListingService {
             );
         }
 
+
         /*
-         * Require 1 - 5 images.
+         * =========================================================
+         * SCAM REPORT RESTRICTION CHECK
+         * =========================================================
+         *
+         * User remains ACTIVE.
+         * User can login normally.
+         *
+         * But if an ADMIN approved a scam report against
+         * this LISTER, listing creation is blocked.
+         */
+        listerRestrictionService
+                .assertCanCreateListing(
+                        currentUserId
+                );
+
+
+        /*
+         * =========================================================
+         * REQUIRE 1 - 5 IMAGES
+         * =========================================================
          */
         if (
                 images == null
@@ -124,6 +157,7 @@ public class ListingService {
             );
         }
 
+
         if (
                 images.size() > 5
         ) {
@@ -135,8 +169,11 @@ public class ListingService {
             );
         }
 
+
         /*
-         * Pricing validation.
+         * =========================================================
+         * PRICING VALIDATION
+         * =========================================================
          */
         if (
                 request.pricingType()
@@ -165,62 +202,62 @@ public class ListingService {
             );
         }
 
+
+        /*
+         * =========================================================
+         * CREATE LISTING
+         * =========================================================
+         */
         Listing listing =
                 new Listing();
+
 
         listing.setLister(
                 lister
         );
 
-        listing.setListingTitle(
-                request.listingTitle()
-                        .trim()
-        );
-
-        listing.setListingCategory(
-                request.listingCategory()
-                        .trim()
-        );
 
         listing.setListingTitle(
                 request.listingTitle()
                         .trim()
         );
 
+
         listing.setListingCategory(
                 request.listingCategory()
                         .trim()
         );
+
 
         listing.setSuburb(
                 request.suburb()
                         .trim()
         );
 
+
         listing.setState(
                 request.state()
                         .trim()
         );
+
 
         listing.setPostcode(
                 request.postcode()
                         .trim()
         );
 
+
         listing.setDescription(
                 request.description()
                         .trim()
         );
 
-        listing.setServiceType(
-                request.serviceType()
-                        .trim()
-        );
 
         listing.setServiceType(
                 request.serviceType()
                         .trim()
         );
+
 
         listing.setDietaryOptions(
                 request.dietaryOptions()
@@ -231,13 +268,16 @@ public class ListingService {
                 )
         );
 
+
         listing.setAvailability(
                 request.availability()
         );
 
+
         listing.setPricingType(
                 request.pricingType()
         );
+
 
         if (
                 request.pricingType()
@@ -259,17 +299,21 @@ public class ListingService {
             );
         }
 
+
         listing.setCurrencyCode(
                 "AUD"
         );
+
 
         listing.setViews(
                 0L
         );
 
+
         listing.setStatus(
                 ListingStatus.ACTIVE
         );
+
 
         listing =
                 listingRepository
@@ -277,8 +321,11 @@ public class ListingService {
                                 listing
                         );
 
+
         /*
-         * Save images.
+         * =========================================================
+         * SAVE IMAGES
+         * =========================================================
          */
         for (
                 int index = 0;
@@ -291,6 +338,7 @@ public class ListingService {
                             index
                     );
 
+
             String path =
                     imageStorageService
                             .store(
@@ -298,28 +346,35 @@ public class ListingService {
                                     file
                             );
 
+
             ListingImage image =
                     new ListingImage();
+
 
             image.setListing(
                     listing
             );
 
+
             image.setImagePath(
                     path
             );
+
 
             image.setOriginalFilename(
                     file.getOriginalFilename()
             );
 
+
             image.setContentType(
                     file.getContentType()
             );
 
+
             image.setSortOrder(
                     index + 1
             );
+
 
             imageRepository
                     .save(
@@ -327,8 +382,15 @@ public class ListingService {
                     );
         }
 
+
         imageRepository.flush();
 
+
+        /*
+         * =========================================================
+         * AUDIT
+         * =========================================================
+         */
         auditService.log(
                 "LISTING_CREATED",
                 currentUserId,
@@ -340,6 +402,7 @@ public class ListingService {
                         + listing.getId()
                         + "\"}"
         );
+
 
         return buildDetail(
                 listing
