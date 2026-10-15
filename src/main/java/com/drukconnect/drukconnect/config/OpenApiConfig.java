@@ -309,4 +309,51 @@ public class OpenApiConfig {
 
                 .build();
     }
+
+    @Bean
+    public GroupedOpenApi adminFeedback() {
+
+        return GroupedOpenApi.builder()
+
+                .group("Admin Feedback")
+                .displayName("Admin Feedback APIs")
+
+                .pathsToMatch(
+                        "/api/v1/admin/feedback/**"
+                )
+
+                .addOpenApiMethodFilter(
+                        method ->
+                                ListingReviewController.class
+                                        .isAssignableFrom(
+                                                method.getDeclaringClass()
+                                        )
+                )
+
+                .build();
+    }
+
+
+    @Bean
+    public GroupedOpenApi platformFeedback() {
+
+        return GroupedOpenApi.builder()
+
+                .group("Platform Feedback")
+                .displayName("Platform Feedback APIs")
+
+                .pathsToMatch(
+                        "/api/v1/feedback/**"
+                )
+
+                .addOpenApiMethodFilter(
+                        method ->
+                                ListingReviewController.class
+                                        .isAssignableFrom(
+                                                method.getDeclaringClass()
+                                        )
+                )
+
+                .build();
+    }
 }
