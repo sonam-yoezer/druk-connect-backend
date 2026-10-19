@@ -1,10 +1,13 @@
 package com.drukconnect.drukconnect.dto.listing;
 
-import com.drukconnect.drukconnect.enums.listing.ListingAvailability;
 import com.drukconnect.drukconnect.enums.listing.ListingPricingType;
 import jakarta.validation.constraints.DecimalMin;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
 
 public record UpdateListingRequest(
 
@@ -16,7 +19,9 @@ public record UpdateListingRequest(
         )
         BigDecimal rateAmount,
 
-        ListingAvailability availability
+        String availability,
+
+        @Size(max = 5) List<@NotNull UUID> retainedImageIds
 
 ) {
 }

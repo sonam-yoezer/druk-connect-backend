@@ -142,14 +142,12 @@ public class ListingImageStorageService {
                     listingDirectory
             );
 
-            Files.copy(
-                    file.getInputStream(),
-                    destination,
-                    StandardCopyOption.REPLACE_EXISTING
-            );
+            try (var input = file.getInputStream()) {
+                Files.copy(input, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
 
         } catch (IOException ex) {
-
+            try { Files.deleteIfExists(destination); } catch (IOException cleanupFailure) { ex.addSuppressed(cleanupFailure); }
             throw new ApiException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "IMAGE_UPLOAD_FAILED",
@@ -166,6 +164,13 @@ public class ListingImageStorageService {
                         "\\",
                         "/"
                 );
+    }
+
+    public void delete(String relativePath) {
+        Path file = rootDirectory.resolve(relativePath).normalize();
+        if (!file.startsWith(rootDirectory)) throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_IMAGE_PATH", "Invalid image path");
+        try { Files.deleteIfExists(file); }
+        catch (IOException exception) { throw new IllegalStateException("Unable to delete listing image", exception); }
     }
 
     public Resource load(

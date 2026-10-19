@@ -1,6 +1,5 @@
 package com.drukconnect.drukconnect.dto.listing;
 
-import com.drukconnect.drukconnect.enums.listing.ListingAvailability;
 import com.drukconnect.drukconnect.enums.listing.ListingPricingType;
 
 import java.math.BigDecimal;
@@ -29,7 +28,7 @@ public record ListingDetailResponse(
 
         Set<String> dietaryOptions,
 
-        ListingAvailability availability,
+        String availability,
 
         ListingPricingType pricingType,
 
