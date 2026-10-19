@@ -1,7 +1,6 @@
 package com.drukconnect.drukconnect.entity.listing;
 
 import com.drukconnect.drukconnect.entity.authentication.User;
-import com.drukconnect.drukconnect.enums.listing.ListingAvailability;
 import com.drukconnect.drukconnect.enums.listing.ListingPricingType;
 import com.drukconnect.drukconnect.enums.listing.ListingStatus;
 
@@ -81,13 +80,8 @@ public class Listing {
     private Set<String> dietaryOptions =
             new HashSet<>();
 
-    @Enumerated(EnumType.STRING)
-    @Column(
-            name = "availability",
-            nullable = false,
-            length = 20
-    )
-    private ListingAvailability availability;
+    @Column(name = "availability", nullable = false, length = 100)
+    private String availability;
 
     @Enumerated(EnumType.STRING)
     @Column(

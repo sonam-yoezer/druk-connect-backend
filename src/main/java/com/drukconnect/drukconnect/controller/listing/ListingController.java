@@ -33,6 +33,9 @@ public class ListingController {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private jakarta.validation.Validator validator;
+
     public ListingController(
             ListingService listingService,
             ListingImageRepository imageRepository,
@@ -93,6 +96,8 @@ public class ListingController {
                     "Invalid listing data format"
             );
         }
+
+        validateData(request);
 
         return listingService.create(
                 userId,
@@ -241,7 +246,7 @@ public class ListingController {
     }
 
 
-    @PatchMapping("/{listingId}")
+    @PatchMapping(value = "/{listingId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ListingDetailResponse updateListing(
 
             @AuthenticationPrincipal
@@ -271,6 +276,26 @@ public class ListingController {
                                 httpRequest
                         )
                 );
+    }
+
+    @PatchMapping(value = "/{listingId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ListingDetailResponse updateListingWithImages(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID listingId, @RequestParam("data") String data,
+            @RequestParam(value = "images", required = false) List<MultipartFile> images,
+            HttpServletRequest httpRequest) {
+        UpdateListingRequest request;
+        try { request = objectMapper.readValue(data, UpdateListingRequest.class); }
+        catch (Exception exception) { throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_LISTING_DATA", "Invalid listing data format"); }
+        validateData(request);
+        return listingService.updateListing(UUID.fromString(jwt.getSubject()), listingId, request,
+            images == null ? List.of() : images, RequestMetadata.from(httpRequest));
+    }
+
+    private void validateData(Object request) {
+        if (request == null) throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_LISTING_DATA", "Listing data is required");
+        var violations = validator.validate(request);
+        if (!violations.isEmpty()) throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_LISTING_DATA",
+            violations.iterator().next().getPropertyPath() + ": " + violations.iterator().next().getMessage());
     }
 
     @DeleteMapping("/{listingId}")

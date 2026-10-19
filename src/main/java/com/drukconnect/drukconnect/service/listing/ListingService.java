@@ -1,6 +1,9 @@
 package com.drukconnect.drukconnect.service.listing;
 
 import com.drukconnect.drukconnect.common.ApiException;
+import com.drukconnect.drukconnect.util.ListingAvailabilityDays;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.drukconnect.drukconnect.common.RequestMetadata;
 import com.drukconnect.drukconnect.dto.listing.*;
 import com.drukconnect.drukconnect.entity.listing.*;
@@ -270,7 +273,7 @@ public class ListingService {
 
 
         listing.setAvailability(
-                request.availability()
+                ListingAvailabilityDays.normalize(request.availability())
         );
 
 
@@ -327,6 +330,12 @@ public class ListingService {
          * SAVE IMAGES
          * =========================================================
          */
+        List<String> createdImagePaths = new ArrayList<>();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) createdImagePaths.forEach(ListingService.this::deleteImageQuietly);
+            }
+        });
         for (
                 int index = 0;
                 index < images.size();
@@ -346,6 +355,8 @@ public class ListingService {
                                     file
                             );
 
+
+            createdImagePaths.add(path);
 
             ListingImage image =
                     new ListingImage();
@@ -1063,6 +1074,12 @@ public class ListingService {
             RequestMetadata meta
     ) {
 
+        return updateListing(currentUserId, listingId, request, List.of(), meta);
+    }
+
+    @Transactional
+    public ListingDetailResponse updateListing(UUID currentUserId, UUID listingId,
+            UpdateListingRequest request, List<MultipartFile> images, RequestMetadata meta) {
         requireLister(
                 currentUserId
         );
@@ -1091,12 +1108,14 @@ public class ListingService {
                         request.rateAmount() == null
                         &&
                         request.availability() == null
+                        && request.retainedImageIds() == null
+                        && (images == null || images.isEmpty())
         ) {
 
             throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "NO_CHANGES_PROVIDED",
-                    "Provide pricing type, rate amount or availability to update"
+                    "Provide pricing, availability or images to update"
             );
         }
 
@@ -1110,7 +1129,7 @@ public class ListingService {
         ) {
 
             listing.setAvailability(
-                    request.availability()
+                    ListingAvailabilityDays.normalize(request.availability())
             );
         }
 
@@ -1204,6 +1223,10 @@ public class ListingService {
             );
         }
 
+        if (request.retainedImageIds() != null || (images != null && !images.isEmpty())) {
+            updateImages(listing, request.retainedImageIds(), images == null ? List.of() : images);
+        }
+
         listing =
                 listingRepository
                         .saveAndFlush(
@@ -1240,6 +1263,50 @@ public class ListingService {
         return buildDetail(
                 listing
         );
+    }
+
+    private void updateImages(Listing listing, List<UUID> retainedIds, List<MultipartFile> uploads) {
+        List<ListingImage> existing = imageRepository.findByListingIdOrderBySortOrderAsc(listing.getId());
+        List<UUID> keep = retainedIds == null ? existing.stream().map(ListingImage::getId).toList() : retainedIds;
+        Set<UUID> ownIds = new HashSet<>(existing.stream().map(ListingImage::getId).toList());
+        if (new HashSet<>(keep).size() != keep.size() || !ownIds.containsAll(keep)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_LISTING_IMAGES", "Retained images must be unique images belonging to this listing.");
+        }
+        int count = keep.size() + uploads.size();
+        if (count < 1 || count > 5) throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_IMAGE_COUNT", "A listing must contain between 1 and 5 images.");
+        List<String> createdPaths = new ArrayList<>();
+        List<ListingImage> removed = existing.stream().filter(image -> !keep.contains(image.getId())).toList();
+        // Files and database changes must agree even if an upload or transaction fails.
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) createdPaths.forEach(ListingService.this::deleteImageQuietly);
+            }
+            @Override public void afterCommit() {
+                removed.forEach(image -> deleteImageQuietly(image.getImagePath()));
+            }
+        });
+        int order = 0;
+        for (UUID id : keep) {
+            ListingImage image = existing.stream().filter(item -> item.getId().equals(id)).findFirst().orElseThrow();
+            image.setSortOrder(order++);
+        }
+        imageRepository.deleteAll(removed);
+        for (MultipartFile file : uploads) {
+            String path = imageStorageService.store(listing.getId(), file);
+            createdPaths.add(path);
+            ListingImage image = new ListingImage();
+            image.setListing(listing); image.setImagePath(path); image.setOriginalFilename(file.getOriginalFilename());
+            image.setContentType(file.getContentType()); image.setSortOrder(order++);
+            imageRepository.save(image);
+        }
+        imageRepository.flush();
+    }
+
+    private void deleteImageQuietly(String path) {
+        try { imageStorageService.delete(path); }
+        catch (RuntimeException exception) {
+            org.slf4j.LoggerFactory.getLogger(ListingService.class).warn("Unable to clean up listing image {}", path, exception);
+        }
     }
 
     @Transactional

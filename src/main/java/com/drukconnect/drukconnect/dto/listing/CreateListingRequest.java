@@ -1,6 +1,5 @@
 package com.drukconnect.drukconnect.dto.listing;
 
-import com.drukconnect.drukconnect.enums.listing.ListingAvailability;
 import com.drukconnect.drukconnect.enums.listing.ListingPricingType;
 
 import jakarta.validation.constraints.*;
@@ -39,8 +38,8 @@ public record CreateListingRequest(
 
         Set<String> dietaryOptions,
 
-        @NotNull
-        ListingAvailability availability,
+        @NotBlank
+        String availability,
 
         @NotNull
         ListingPricingType pricingType,

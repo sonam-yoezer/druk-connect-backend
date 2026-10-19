@@ -55,6 +55,7 @@ public interface ListingRepository
             Pageable pageable
     );
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     Optional<Listing> findByIdAndListerIdAndStatusNot(
             UUID id,
             UUID listerId,

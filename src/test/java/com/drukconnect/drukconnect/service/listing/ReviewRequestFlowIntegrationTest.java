@@ -55,7 +55,7 @@ class ReviewRequestFlowIntegrationTest {
         buyer = users.saveAndFlush(user(AccessTypeEnum.BUYER));
         listing = new Listing(); listing.setLister(lister); listing.setListingTitle("Home Tour");
         listing.setListingCategory("Tours"); listing.setDescription("Local tour"); listing.setServiceType("Tour");
-        listing.setAvailability(ListingAvailability.BOTH); listing.setPricingType(ListingPricingType.FREE);
+        listing.setAvailability("MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY,SUNDAY"); listing.setPricingType(ListingPricingType.FREE);
         listing.setSuburb("Thimphu"); listing.setState("Thimphu"); listing.setPostcode("11001");
         listing = listings.saveAndFlush(listing);
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
