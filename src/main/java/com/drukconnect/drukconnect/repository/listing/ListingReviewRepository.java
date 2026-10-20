@@ -55,4 +55,19 @@ public interface ListingReviewRepository
             @Param("status")
             ReviewStatus status
     );
+    interface DashboardReviewStats {
+        long getApprovedReviewCount();
+        Double getAverageRating();
+    }
+
+    @Query("""
+        select count(r) as approvedReviewCount, avg(r.rating) as averageRating
+        from ListingReview r
+        where r.listing.lister.id = :listerId and r.listing.status <> :deleted
+          and r.status = :approved
+        """)
+    DashboardReviewStats getDashboardStats(@Param("listerId") UUID listerId,
+            @Param("deleted") com.drukconnect.drukconnect.enums.listing.ListingStatus deleted,
+            @Param("approved") ReviewStatus approved);
+
 }

@@ -10,4 +10,24 @@ public interface ListingServiceAvailmentRepository extends JpaRepository<Listing
     Optional<ListingServiceAvailment> findByListingIdAndBuyerId(UUID listingId, UUID buyerId);
     Page<ListingServiceAvailment> findByBuyerIdOrderByAvailedAtDesc(UUID buyerId, Pageable pageable);
     Page<ListingServiceAvailment> findByListingListerIdOrderByAvailedAtDesc(UUID listerId, Pageable pageable);
+    interface DashboardAvailmentStats {
+        long getServicesAvailedCount();
+        long getUniqueBuyersServed();
+        long getServicesAvailedLast30Days();
+    }
+
+    @org.springframework.data.jpa.repository.Query("""
+        select count(a) as servicesAvailedCount,
+               count(distinct a.buyer.id) as uniqueBuyersServed,
+               coalesce(sum(case when a.availedAt >= :since then 1 else 0 end), 0) as servicesAvailedLast30Days
+        from ListingServiceAvailment a
+        where a.listing.lister.id = :listerId and a.listing.status <> :deleted
+          and a.availedAt <= :asOf
+        """)
+    DashboardAvailmentStats getDashboardStats(
+            @org.springframework.data.repository.query.Param("listerId") UUID listerId,
+            @org.springframework.data.repository.query.Param("deleted") com.drukconnect.drukconnect.enums.listing.ListingStatus deleted,
+            @org.springframework.data.repository.query.Param("since") java.time.Instant since,
+            @org.springframework.data.repository.query.Param("asOf") java.time.Instant asOf);
+
 }
