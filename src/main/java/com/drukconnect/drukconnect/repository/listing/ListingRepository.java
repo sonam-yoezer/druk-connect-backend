@@ -150,4 +150,23 @@ public interface ListingRepository
 
             Pageable pageable
     );
+    interface DashboardStats {
+        long getTotalListings();
+        long getActiveListings();
+        long getInactiveListings();
+        long getTotalListingViews();
+    }
+
+    @Query("""
+        select count(l) as totalListings,
+               coalesce(sum(case when l.status = :active then 1 else 0 end), 0) as activeListings,
+               coalesce(sum(case when l.status = :inactive then 1 else 0 end), 0) as inactiveListings,
+               coalesce(sum(l.views), 0) as totalListingViews
+        from Listing l
+        where l.lister.id = :listerId and l.status <> :deleted
+        """)
+    DashboardStats getDashboardStats(@Param("listerId") UUID listerId,
+            @Param("active") ListingStatus active, @Param("inactive") ListingStatus inactive,
+            @Param("deleted") ListingStatus deleted);
+
 }
