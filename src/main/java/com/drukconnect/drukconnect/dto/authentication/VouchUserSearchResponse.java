@@ -9,5 +9,6 @@ public record VouchUserSearchResponse(
         String firstName,
         String lastName,
         String email,
-        AccessTypeEnum accessType
+        AccessTypeEnum accessType,
+        String profileImageUrl
 ) {}

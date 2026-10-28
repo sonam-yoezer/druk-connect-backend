@@ -598,8 +598,9 @@ public class ListingService {
 
                 fullName(
                         listing.getLister()
-                )
-        );
+                ),
+                       listing.getLister().getProfileImageUrl()
+               );
     }
 
     private ListingDetailResponse buildDetail(
@@ -644,7 +645,8 @@ public class ListingService {
                                                         review.getTags()
                                                 ),
 
-                                                review.getSubmittedAt()
+                                                review.getSubmittedAt(),
+                                                review.getReviewer().getProfileImageUrl()
                                         )
                         )
                         .toList();
@@ -685,7 +687,8 @@ public class ListingService {
                                                         vouch.getVoucherUser()
                                                 ),
 
-                                                vouch.getVouchedAt()
+                                                vouch.getVouchedAt(),
+                                                vouch.getVoucherUser().getProfileImageUrl()
                                         )
                         )
                         .toList();
@@ -720,7 +723,8 @@ public class ListingService {
 
                         activeVouches.size(),
 
-                        vouches
+                        vouches,
+                        lister.getProfileImageUrl()
                 );
 
         /*

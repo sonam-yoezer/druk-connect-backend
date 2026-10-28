@@ -106,7 +106,9 @@ public class ListingReviewRequestService {
             invitations.findByListingIdAndBuyerId(listingId, buyer.getId())
                 .map(request -> "PENDING".equals(request.getStatus()) && validInvitation(request)).orElse(false),
             availments.existsByListingIdAndBuyerId(listingId, buyer.getId()),
-            alreadyReviewed(listingId, buyer.getId()))).toList();
+            alreadyReviewed(listingId, buyer.getId()),
+                                                                       buyer.getProfileImageUrl()
+                                                               )).toList();
         return new PagedReviewRecipientsResponse(buyers, result.getNumber() + 1, result.getSize(),
             result.getTotalElements(), result.getTotalPages(), result.hasNext(), result.hasPrevious());
     }
@@ -201,6 +203,8 @@ public class ListingReviewRequestService {
             .queryParam("redirect", reviewPath(request)).build().encode().toUriString();
         return new ReviewInvitationResponse(request.getId(), request.getListing().getId(), request.getListing().getListingTitle(),
             request.getBuyer().getId(), request.getBuyer().getFirstName() + " " + request.getBuyer().getLastName(),
-            status, request.getRequestedAt(), request.getExpiresAt(), reviewUrl(request), loginUrl, message);
+            status, request.getRequestedAt(), request.getExpiresAt(), reviewUrl(request), loginUrl, message,
+                       request.getBuyer().getProfileImageUrl(), request.getListing().getLister().getProfileImageUrl()
+               );
     }
 }

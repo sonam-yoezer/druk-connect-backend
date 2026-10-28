@@ -62,6 +62,22 @@ public class User {
     )
     private AccessTypeEnum accessType;
 
+    @Column(name = "bio", length = 1000)
+    private String bio;
+
+    @Column(name = "location", length = 180)
+    private String location;
+
+    @Column(name = "profile_image_path", length = 500)
+    private String profileImagePath;
+
+    @Transient
+    public String getProfileImageUrl() {
+        if (profileImagePath == null) return null;
+        String version = profileImagePath.substring(profileImagePath.lastIndexOf('/') + 1);
+        return "/api/v1/users/" + id + "/profile-image?v=" + version;
+    }
+
     @PrePersist
     void prePersist() {
         Instant now = Instant.now();

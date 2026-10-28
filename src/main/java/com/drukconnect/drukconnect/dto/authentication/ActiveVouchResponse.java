@@ -17,7 +17,7 @@ public record ActiveVouchResponse(
 
         String status,
 
-        Instant vouchedAt
-
+        Instant vouchedAt,
+        String profileImageUrl
 ) {
 }

@@ -690,7 +690,8 @@ public class VouchService {
                                 user.getFirstName(),
                                 user.getLastName(),
                                 user.getEmail(),
-                                user.getAccessType()
+                                user.getAccessType(),
+                                user.getProfileImageUrl()
                         )
                 )
                 .toList();
@@ -1515,7 +1516,8 @@ public class VouchService {
 
                                 request.getRequestedAt(),
 
-                                request.getRespondedAt()
+                                request.getRespondedAt(),
+                                request.getRequester().getProfileImageUrl()
                         )
                 )
                 .toList();
@@ -1782,8 +1784,9 @@ public class VouchService {
 
                                             vouch.getVouchedAt(),
 
-                                            withdrawalPending
-                                    );
+                                            withdrawalPending,
+                                                   lister.getProfileImageUrl()
+                                           );
                                 }
                         )
                         .toList();
