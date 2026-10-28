@@ -12,5 +12,6 @@ public record UserSummary(
         String email,
         String phoneNumber,
         AccessTypeEnum accessType,
-        List<String> roles
+        List<String> roles,
+        String profileImageUrl
 ) {}

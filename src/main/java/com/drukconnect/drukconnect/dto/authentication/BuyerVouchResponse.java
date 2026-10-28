@@ -19,7 +19,7 @@ public record BuyerVouchResponse(
 
         Instant vouchedAt,
 
-        boolean withdrawalPending
-
+        boolean withdrawalPending,
+        String profileImageUrl
 ) {
 }

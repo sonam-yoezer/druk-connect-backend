@@ -10,5 +10,6 @@ public record VouchReceivedResponse(
         String lastName,
         String email,
         String status,
-        Instant vouchedAt
+        Instant vouchedAt,
+        String profileImageUrl
 ) {}

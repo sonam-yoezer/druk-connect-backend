@@ -11,7 +11,7 @@ public record ListingVouchResponse(
 
         String voucherName,
 
-        Instant vouchedAt
-
+        Instant vouchedAt,
+        String profileImageUrl
 ) {
 }

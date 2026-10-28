@@ -8,6 +8,7 @@ public record RecoveryBuyerResponse(
         String firstName,
         String lastName,
         String email,
-        String accessType
+        String accessType,
+        String profileImageUrl
 ) {
 }

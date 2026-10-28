@@ -18,7 +18,7 @@ public record ListingReviewResponse(
 
         Set<String> tags,
 
-        Instant submittedAt
-
+        Instant submittedAt,
+        String profileImageUrl
 ) {
 }

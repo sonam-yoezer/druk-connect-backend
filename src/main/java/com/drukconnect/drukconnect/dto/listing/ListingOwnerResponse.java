@@ -19,7 +19,7 @@ public record ListingOwnerResponse(
 
         long activeVouches,
 
-        List<ListingVouchResponse> vouches
-
+        List<ListingVouchResponse> vouches,
+        String profileImageUrl
 ) {
 }

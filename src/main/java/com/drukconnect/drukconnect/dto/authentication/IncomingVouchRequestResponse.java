@@ -12,6 +12,7 @@ public record IncomingVouchRequestResponse(
         String message,
         String status,
         Instant requestedAt,
-        Instant respondedAt
+        Instant respondedAt,
+        String profileImageUrl
 ) {
 }

@@ -706,8 +706,9 @@ public class ListingReviewService {
 
                 review.getTags(),
 
-                review.getSubmittedAt()
-        );
+                review.getSubmittedAt(),
+                       review.getReviewer().getProfileImageUrl()
+               );
     }
 
     @Transactional(readOnly = true)
@@ -781,8 +782,9 @@ public class ListingReviewService {
                                             review.getStatus()
                                                     .name(),
 
-                                            review.getSubmittedAt()
-                                    );
+                                            review.getSubmittedAt(),
+                                                   reviewer.getProfileImageUrl()
+                                           );
                                 }
                         )
                         .toList();

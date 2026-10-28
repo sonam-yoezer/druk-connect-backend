@@ -798,7 +798,8 @@ public class AuthService {
 
                         user.getAccessType(),
 
-                        roles
+                        roles,
+                        user.getProfileImageUrl()
                 );
 
 
@@ -1192,8 +1193,9 @@ public class AuthService {
                                         String refresh,
                                         Instant refreshExpiresAt) {
         UserSummary summary = new UserSummary(
-                user.getId(), user.getFirstName(), user.getLastName(), user.getEmail(), user.getPhoneNumber(), user.getAccessType(), roles
-        );
+                user.getId(), user.getFirstName(), user.getLastName(), user.getEmail(), user.getPhoneNumber(), user.getAccessType(), roles,
+                                      user.getProfileImageUrl()
+                              );
         return new TokenResponse(
                 "Bearer",
                 access.value(),

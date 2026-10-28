@@ -40,7 +40,7 @@ public record ListingSummaryResponse(
 
         int averageRatingStar,
 
-        String listerName
-
+        String listerName,
+        String listerProfileImageUrl
 ) {
 }

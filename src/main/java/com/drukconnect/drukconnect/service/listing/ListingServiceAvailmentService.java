@@ -64,7 +64,9 @@ public class ListingServiceAvailmentService {
         Listing listing=record.getListing(); User buyer=record.getBuyer(); User lister=listing.getLister();
         boolean reviewed=reviews.existsByListingIdAndReviewerIdAndStatusIn(listing.getId(),buyer.getId(),List.of(ReviewStatus.PENDING,ReviewStatus.APPROVED));
         return new ServiceAvailmentResponse(record.getId(),listing.getId(),listing.getListingTitle(),listing.getStatus().name(),
-            buyer.getId(),buyer.getFirstName()+" "+buyer.getLastName(),lister.getId(),lister.getFirstName()+" "+lister.getLastName(),record.getAvailedAt(),reviewed,message);
+            buyer.getId(),buyer.getFirstName()+" "+buyer.getLastName(),lister.getId(),lister.getFirstName()+" "+lister.getLastName(),record.getAvailedAt(),reviewed,message,
+                       buyer.getProfileImageUrl(), lister.getProfileImageUrl()
+               );
     }
     private ApiException error(HttpStatus status,String code,String message) {return new ApiException(status,code,message);}
 }

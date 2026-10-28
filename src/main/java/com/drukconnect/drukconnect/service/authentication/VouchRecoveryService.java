@@ -156,7 +156,8 @@ public class VouchRecoveryService {
                                         user.getLastName(),
                                         user.getEmail(),
                                         user.getAccessType()
-                                                .name()
+                                                .name(),
+                                        user.getProfileImageUrl()
                                 )
                 )
                 .toList();

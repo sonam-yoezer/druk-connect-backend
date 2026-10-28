@@ -620,6 +620,7 @@ public class SecurityConfig {
                                 .requestMatchers(
                                         HttpMethod.GET,
 
+                                        "/api/v1/users/*/profile-image",
                                         "/api/v1/listings",
 
                                         "/api/v1/listings/**"

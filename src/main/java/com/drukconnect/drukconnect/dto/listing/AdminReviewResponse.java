@@ -26,7 +26,7 @@ public record AdminReviewResponse(
 
         String status,
 
-        Instant submittedAt
-
+        Instant submittedAt,
+        String profileImageUrl
 ) {
 }
