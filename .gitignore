@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Private local email configuration
+/.env.properties

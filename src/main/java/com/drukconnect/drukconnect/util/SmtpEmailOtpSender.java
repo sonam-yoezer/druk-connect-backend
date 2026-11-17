@@ -112,7 +112,7 @@ public class SmtpEmailOtpSender
 
 
         log.info(
-                "Email OTP successfully submitted to SMTP for [{}]",
+                "Email OTP successfully submitted to email provider for [{}]",
                 email
         );
     }
