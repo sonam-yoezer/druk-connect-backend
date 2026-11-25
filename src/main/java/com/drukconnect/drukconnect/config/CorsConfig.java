@@ -30,7 +30,7 @@ public class CorsConfig {
          */
         configuration.setAllowedOrigins(
                 List.of(
-                        "http://localhost:3000", "https://druk-connect-frontend.onrender.com"
+                        "http://localhost:3000", "https://druk-connect-frontend.onrender.com", "https://www.bhutanesemarketplace.au"
                 )
         );
 
