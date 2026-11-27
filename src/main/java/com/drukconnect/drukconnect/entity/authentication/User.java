@@ -62,6 +62,18 @@ public class User {
     )
     private AccessTypeEnum accessType;
 
+    @Column(name = "show_email", nullable = false)
+    private boolean showEmail = true;
+
+    @Column(name = "show_phone_number", nullable = false)
+    private boolean showPhoneNumber = true;
+
+    @Transient
+    public String getPublicEmail() { return showEmail ? email : null; }
+
+    @Transient
+    public String getPublicPhoneNumber() { return showPhoneNumber ? phoneNumber : null; }
+
     @Column(name = "bio", length = 1000)
     private String bio;
 

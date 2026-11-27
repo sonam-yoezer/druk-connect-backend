@@ -79,7 +79,7 @@ public class PlatformFeedbackEmailNotificationSender
     ) {
 
         String subject =
-                "We received your DrukConnect feedback";
+                "We received your Bhutanese Marketplace feedback";
 
 
         String html =
@@ -100,7 +100,7 @@ public class PlatformFeedbackEmailNotificationSender
 
                     <p>
                         Your feedback has been received by the
-                        DrukConnect team.
+                        Bhutanese Marketplace team.
                     </p>
 
                     <p>
@@ -122,7 +122,7 @@ public class PlatformFeedbackEmailNotificationSender
 
                     <p>
                         Regards,<br>
-                        DrukConnect Team
+                        Bhutanese Marketplace Team
                     </p>
 
                 </body>
@@ -182,7 +182,7 @@ public class PlatformFeedbackEmailNotificationSender
 
 
         String subject =
-                "New DrukConnect platform feedback";
+                "New Bhutanese Marketplace platform feedback";
 
 
         String html =
@@ -310,7 +310,7 @@ public class PlatformFeedbackEmailNotificationSender
     ) {
 
         String subject =
-                "Your DrukConnect feedback status was updated";
+                "Your Bhutanese Marketplace feedback status was updated";
 
 
         String html =
@@ -328,7 +328,7 @@ public class PlatformFeedbackEmailNotificationSender
                     <p>Hello %s,</p>
 
                     <p>
-                        The DrukConnect team has updated
+                        The Bhutanese Marketplace team has updated
                         your feedback.
                     </p>
 
@@ -342,7 +342,7 @@ public class PlatformFeedbackEmailNotificationSender
 
                     <p>
                         Regards,<br>
-                        DrukConnect Team
+                        Bhutanese Marketplace Team
                     </p>
 
                 </body>
@@ -394,7 +394,7 @@ public class PlatformFeedbackEmailNotificationSender
     ) {
 
         String subject =
-                "DrukConnect feedback status updated";
+                "Bhutanese Marketplace feedback status updated";
 
 
         String html =
@@ -429,7 +429,7 @@ public class PlatformFeedbackEmailNotificationSender
 
                     <p>
                         This action has also been recorded in
-                        the DrukConnect audit log.
+                        the Bhutanese Marketplace audit log.
                     </p>
 
                 </body>
@@ -484,7 +484,7 @@ public class PlatformFeedbackEmailNotificationSender
     ) {
 
         String subject =
-                "Your DrukConnect feedback was reviewed";
+                "Your Bhutanese Marketplace feedback was reviewed";
 
 
         String html =
@@ -502,7 +502,7 @@ public class PlatformFeedbackEmailNotificationSender
                     <p>Hello %s,</p>
 
                     <p>
-                        The DrukConnect team has reviewed and
+                        The Bhutanese Marketplace team has reviewed and
                         categorised your feedback.
                     </p>
 
@@ -511,12 +511,12 @@ public class PlatformFeedbackEmailNotificationSender
                     </p>
 
                     <p>
-                        Thank you for helping us improve DrukConnect.
+                        Thank you for helping us improve Bhutanese Marketplace.
                     </p>
 
                     <p>
                         Regards,<br>
-                        DrukConnect Team
+                        Bhutanese Marketplace Team
                     </p>
 
                 </body>
@@ -561,7 +561,7 @@ public class PlatformFeedbackEmailNotificationSender
     ) {
 
         String subject =
-                "DrukConnect feedback theme updated";
+                "Bhutanese Marketplace feedback theme updated";
 
 
         String html =
@@ -771,9 +771,7 @@ public class PlatformFeedbackEmailNotificationSender
                     );
 
 
-            helper.setFrom(
-                    fromEmail
-            );
+            helper.setFrom(MailBranding.from(fromEmail));
 
 
             helper.setTo(
@@ -865,7 +863,7 @@ public class PlatformFeedbackEmailNotificationSender
 
         return name.isBlank()
 
-                ? "DrukConnect member"
+                ? "Bhutanese Marketplace member"
 
                 : name;
     }

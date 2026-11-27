@@ -27,16 +27,20 @@ import java.util.UUID;
 @RequestMapping("/api/v1/admin/lister-scam")
 public class AdminListerScamController {
 
+    private final com.drukconnect.drukconnect.service.moderation.AdminScamReporterHistoryService reporterHistory;
+
     private final ListerScamModerationService
             scamModerationService;
 
 
     public AdminListerScamController(
-            ListerScamModerationService scamModerationService
+            ListerScamModerationService scamModerationService,
+            com.drukconnect.drukconnect.service.moderation.AdminScamReporterHistoryService reporterHistory
     ) {
 
         this.scamModerationService =
                 scamModerationService;
+        this.reporterHistory = reporterHistory;
     }
 
 
@@ -48,10 +52,13 @@ public class AdminListerScamController {
     @GetMapping("/reports")
     public PagedListerScamReportResponse getReports(
 
-            @RequestParam(
-                    defaultValue = "PENDING"
-            )
+            @AuthenticationPrincipal Jwt jwt,
+
+            @RequestParam(defaultValue = "PENDING")
             ScamReportStatus status,
+
+            @RequestParam(defaultValue = "false")
+            boolean all,
 
             @RequestParam(
                     defaultValue = "1"
@@ -65,9 +72,12 @@ public class AdminListerScamController {
 
     ) {
 
+        if (jwt == null) throw new com.drukconnect.drukconnect.common.ApiException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED", "Sign in to continue");
+        reporterHistory.requireAdmin(UUID.fromString(jwt.getSubject()));
         return scamModerationService
                 .getReports(
-                        status,
+                        all ? null : status,
                         page,
                         size
                 );

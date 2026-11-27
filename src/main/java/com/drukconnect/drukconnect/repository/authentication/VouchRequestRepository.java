@@ -11,6 +11,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface VouchRequestRepository extends JpaRepository<VouchRequestEntity, UUID> {
+    org.springframework.data.domain.Page<VouchRequestEntity> findByRequesterId(
+            UUID requesterId, org.springframework.data.domain.Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<VouchRequestEntity> findByIdAndStatus(UUID id, VouchRequestStatus status);
 

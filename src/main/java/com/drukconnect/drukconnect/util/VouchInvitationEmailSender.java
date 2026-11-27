@@ -34,22 +34,20 @@ public class VouchInvitationEmailSender {
         SimpleMailMessage mail =
                 new SimpleMailMessage();
 
-        mail.setFrom(
-                properties.mail().from()
-        );
+        mail.setFrom(MailBranding.from(properties.mail().from()));
 
         mail.setTo(email);
 
         mail.setSubject(
-                "DrukConnect Vouch Invitation"
+                "Bhutanese Marketplace Vouch Invitation"
         );
 
         mail.setText(
                 requester.getFirstName()
                         + " "
                         + requester.getLastName()
-                        + " has invited you to vouch for them on DrukConnect.\n\n"
-                        + "Create your BUYER account using the link below:\n\n"
+                        + " has invited you to vouch for them on Bhutanese Marketplace.\n\n"
+                        + "Create an account to vouch using the link below:\n\n"
                         + link
                         + "\n\nThis invitation will expire automatically."
         );

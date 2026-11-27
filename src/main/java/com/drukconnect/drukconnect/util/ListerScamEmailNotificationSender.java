@@ -85,7 +85,7 @@ public class ListerScamEmailNotificationSender
 
 
         String subject =
-                "Your DrukConnect listing access has been restricted";
+                "Your Bhutanese Marketplace listing access has been restricted";
 
 
         String html =
@@ -129,7 +129,7 @@ public class ListerScamEmailNotificationSender
                             </p>
 
                             <p>
-                                A scam report involving your DrukConnect account
+                                A scam report involving your Bhutanese Marketplace account
                                 was reviewed and approved by our moderation team.
                             </p>
 
@@ -172,12 +172,12 @@ public class ListerScamEmailNotificationSender
 
                             <p>
                                 If you believe this decision was incorrect,
-                                log in to DrukConnect and submit an appeal.
+                                log in to Bhutanese Marketplace and submit an appeal.
                             </p>
 
                             <p>
                                 Regards,<br>
-                                DrukConnect Moderation Team
+                                Bhutanese Marketplace Moderation Team
                             </p>
 
                         </div>
@@ -228,7 +228,7 @@ public class ListerScamEmailNotificationSender
 
 
         String subject =
-                "We received your DrukConnect appeal";
+                "We received your Bhutanese Marketplace appeal";
 
 
         String html =
@@ -272,7 +272,7 @@ public class ListerScamEmailNotificationSender
 
                             <p>
                                 We have received your appeal regarding your
-                                DrukConnect listing restriction.
+                                Bhutanese Marketplace listing restriction.
                             </p>
 
                             <div style="
@@ -301,7 +301,7 @@ public class ListerScamEmailNotificationSender
                             </p>
 
                             <p>
-                                You can still log in and browse DrukConnect,
+                                You can still log in and browse Bhutanese Marketplace,
                                 but you cannot create new listings until the
                                 restriction is removed.
                             </p>
@@ -312,7 +312,7 @@ public class ListerScamEmailNotificationSender
 
                             <p>
                                 Regards,<br>
-                                DrukConnect Moderation Team
+                                Bhutanese Marketplace Moderation Team
                             </p>
 
                         </div>
@@ -372,7 +372,7 @@ public class ListerScamEmailNotificationSender
 
 
         String subject =
-                "Your DrukConnect appeal has been approved";
+                "Your Bhutanese Marketplace appeal has been approved";
 
 
         String html =
@@ -417,7 +417,7 @@ public class ListerScamEmailNotificationSender
 
                             <p>
                                 Your appeal has been reviewed and approved by
-                                the DrukConnect moderation team.
+                                the Bhutanese Marketplace moderation team.
                             </p>
 
                             <p>
@@ -458,7 +458,7 @@ public class ListerScamEmailNotificationSender
 
                             <p>
                                 Regards,<br>
-                                DrukConnect Moderation Team
+                                Bhutanese Marketplace Moderation Team
                             </p>
 
                         </div>
@@ -520,7 +520,7 @@ public class ListerScamEmailNotificationSender
 
 
         String subject =
-                "Decision on your DrukConnect appeal";
+                "Decision on your Bhutanese Marketplace appeal";
 
 
         String html =
@@ -565,7 +565,7 @@ public class ListerScamEmailNotificationSender
 
                             <p>
                                 Your appeal has been reviewed by the
-                                DrukConnect moderation team.
+                                Bhutanese Marketplace moderation team.
                             </p>
 
                             <p>
@@ -574,7 +574,7 @@ public class ListerScamEmailNotificationSender
                             </p>
 
                             <p>
-                                You can still log in and browse DrukConnect,
+                                You can still log in and browse Bhutanese Marketplace,
                                 but you cannot create new listings.
                             </p>
 
@@ -605,7 +605,7 @@ public class ListerScamEmailNotificationSender
 
                             <p>
                                 Regards,<br>
-                                DrukConnect Moderation Team
+                                Bhutanese Marketplace Moderation Team
                             </p>
 
                         </div>
@@ -680,9 +680,7 @@ public class ListerScamEmailNotificationSender
                     );
 
 
-            helper.setFrom(
-                    fromEmail
-            );
+            helper.setFrom(MailBranding.from(fromEmail));
 
 
             helper.setTo(
@@ -750,7 +748,7 @@ public class ListerScamEmailNotificationSender
                 result.isBlank()
         ) {
 
-            return "DrukConnect member";
+            return "Bhutanese Marketplace member";
         }
 
 

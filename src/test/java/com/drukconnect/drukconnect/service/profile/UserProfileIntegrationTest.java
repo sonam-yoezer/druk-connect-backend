@@ -173,6 +173,54 @@ class UserProfileIntegrationTest {
             .content("{\"identifier\":\""+user.getEmail()+"\",\"password\":\""+PASSWORD+"\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.tokens.user.profileImageUrl").value(buyerPhoto.profileImageUrl()));
     }
+    @Test void privacyIsAuthenticatedValidatedAndDoesNotHideOwnAccountDetails() throws Exception {
+        mvc.perform(patch("/api/v1/users/me/privacy").contentType("application/json")
+            .content("{\"showEmail\":false,\"showPhoneNumber\":false}"))
+            .andExpect(status().isUnauthorized());
+        mvc.perform(patch("/api/v1/users/me/privacy").with(jwt().jwt(j -> j.subject(user.getId().toString())))
+            .contentType("application/json").content("{\"showEmail\":false}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(patch("/api/v1/users/me/privacy").with(jwt().jwt(j -> j.subject(user.getId().toString())))
+            .contentType("application/json").content("{\"showEmail\":false,\"showPhoneNumber\":false}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.showEmail").value(false))
+            .andExpect(jsonPath("$.showPhoneNumber").value(false)).andExpect(jsonPath("$.email").value(user.getEmail()));
+        var stored = users.findById(user.getId()).orElseThrow();
+        assertNull(stored.getPublicEmail()); assertNull(stored.getPublicPhoneNumber());
+        assertEquals(user.getPhoneNumber(), service.get(user.getId()).phoneNumber());
+        service.updatePrivacy(user.getId(), new ContactPrivacyRequest(true, false), null);
+        stored = users.findById(user.getId()).orElseThrow();
+        assertEquals(user.getEmail(), stored.getPublicEmail()); assertNull(stored.getPublicPhoneNumber());
+    }
+
+    @Test void hiddenContactsAreRedactedFromListingsReviewRecipientsAndMemberSearch() throws Exception {
+        User owner = account(); owner.setAccessType(AccessTypeEnum.LISTER); users.saveAndFlush(owner);
+        Listing listing = new Listing(); listing.setLister(owner); listing.setListingTitle("Privacy listing");
+        listing.setListingCategory("Catering"); listing.setDescription("Test"); listing.setServiceType("Cooking");
+        listing.setSuburb("Suburb"); listing.setState("State"); listing.setPostcode("1000");
+        listing.setAvailability("MONDAY"); listing.setPricingType(ListingPricingType.FREE); listings.saveAndFlush(listing);
+        service.updatePrivacy(owner.getId(), new ContactPrivacyRequest(false, false), null);
+        mvc.perform(get("/api/v1/listings/" + listing.getId())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.lister.email").doesNotExist()).andExpect(jsonPath("$.lister.emailLink").doesNotExist())
+            .andExpect(jsonPath("$.lister.phoneNumber").doesNotExist()).andExpect(jsonPath("$.lister.whatsappLink").doesNotExist());
+        user.setFirstName("Privacy" + UUID.randomUUID()); users.saveAndFlush(user);
+        service.updatePrivacy(user.getId(), new ContactPrivacyRequest(false, false), null);
+        mvc.perform(get("/api/v1/listings/" + listing.getId() + "/review-requests/buyers/search")
+            .param("query",user.getFirstName()).with(jwt().jwt(j -> j.subject(owner.getId().toString()))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.buyers[0].userId").value(user.getId().toString()))
+            .andExpect(jsonPath("$.buyers[0].email").doesNotExist()).andExpect(jsonPath("$.buyers[0].phoneNumber").doesNotExist());
+        mvc.perform(get("/api/v1/vouch-requests/users/" + owner.getId() + "/search").param("query",user.getFirstName()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$[0].email").doesNotExist());
+        assertTrue(users.searchVouchCandidates(owner.getId(),user.getEmail(),UserStatus.ACTIVE,AccessTypeEnum.BUYER,
+            org.springframework.data.domain.PageRequest.of(0,20)).isEmpty());
+        assertTrue(users.searchActiveBuyers(AccessTypeEnum.BUYER,UserStatus.ACTIVE,user.getPhoneNumber(),
+            org.springframework.data.domain.PageRequest.of(0,20)).isEmpty());
+        service.updatePrivacy(owner.getId(), new ContactPrivacyRequest(true, true), null);
+        mvc.perform(get("/api/v1/listings/" + listing.getId())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.lister.email").value(owner.getEmail()))
+            .andExpect(jsonPath("$.lister.emailLink").value("mailto:" + owner.getEmail()))
+            .andExpect(jsonPath("$.lister.phoneNumber").value(owner.getPhoneNumber()))
+            .andExpect(jsonPath("$.lister.whatsappLink").isNotEmpty());
+    }
     @AfterAll static void cleanup() throws Exception {
         try(var paths=Files.walk(root)){for(Path path:paths.sorted(Comparator.reverseOrder()).toList())Files.deleteIfExists(path);}
     }

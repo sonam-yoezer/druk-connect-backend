@@ -377,15 +377,13 @@ public class ListerScamModerationService {
                 );
 
 
-        Page<ListerScamReport> result =
-                reportRepository
-                        .findAllByStatus(
-                                status,
-                                PageRequest.of(
-                                        safePage - 1,
-                                        safeSize
-                                )
-                        );
+        var pageable = PageRequest.of(safePage - 1, safeSize,
+                org.springframework.data.domain.Sort.by(
+                    org.springframework.data.domain.Sort.Order.desc("reportedAt"),
+                    org.springframework.data.domain.Sort.Order.desc("id")));
+        Page<ListerScamReport> result = status == null
+                ? reportRepository.findAll(pageable)
+                : reportRepository.findAllByStatus(status, pageable);
 
 
         return new PagedListerScamReportResponse(
@@ -1681,6 +1679,10 @@ public class ListerScamModerationService {
 
     ) {
 
+        return toReportResponse(report, message, reportRepository.countByReporterId(report.getReporter().getId()));
+    }
+
+    ListerScamReportResponse toReportResponse(ListerScamReport report, String message, long totalReports) {
         return new ListerScamReportResponse(
 
                 report.getId(),
@@ -1712,7 +1714,11 @@ public class ListerScamModerationService {
 
                 report.getModerationReason(),
 
-                message
+                message,
+
+                fullName(report.getReporter()),
+
+                totalReports
         );
     }
 

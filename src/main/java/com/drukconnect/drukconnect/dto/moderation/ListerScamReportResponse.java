@@ -29,7 +29,11 @@ public record ListerScamReportResponse(
 
         String moderationReason,
 
-        String message
+        String message,
+
+        String reporterName,
+
+        long reporterReportCount
 
 ) {
 }

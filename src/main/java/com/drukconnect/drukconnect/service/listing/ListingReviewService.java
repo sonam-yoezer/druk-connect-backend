@@ -769,7 +769,7 @@ public class ListingReviewService {
                                                             + reviewer.getLastName()
                                             ).trim(),
 
-                                            reviewer.getEmail(),
+                                            reviewer.getPublicEmail(),
 
                                             review.getRating(),
 

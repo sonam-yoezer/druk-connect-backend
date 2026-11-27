@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class ReviewNotificationEmailSender {
 
+    @org.springframework.beans.factory.annotation.Value("${app.mail.from}")
+    private String from;
+
     private final JavaMailSender mailSender;
 
     public ReviewNotificationEmailSender(
@@ -46,8 +49,8 @@ public class ReviewNotificationEmailSender {
 
         String subject =
                 approved
-                        ? "Your DrukConnect review was approved"
-                        : "Your DrukConnect review was rejected";
+                        ? "Your Bhutanese Marketplace review was approved"
+                        : "Your Bhutanese Marketplace review was rejected";
 
         String statusText =
                 approved
@@ -57,11 +60,11 @@ public class ReviewNotificationEmailSender {
         String statusMessage =
                 approved
                         ? """
-                        Your review has been approved by the DrukConnect administrator
+                        Your review has been approved by the Bhutanese Marketplace administrator
                         and is now published on the listing.
                         """
                         : """
-                        Your review was reviewed by the DrukConnect administrator
+                        Your review was reviewed by the Bhutanese Marketplace administrator
                         and was not approved for publication.
                         """;
 
@@ -111,7 +114,7 @@ public class ReviewNotificationEmailSender {
                     %s
 
                     <p style="margin-top:22px;">
-                        Thank you for contributing to the DrukConnect community.
+                        Thank you for contributing to the Bhutanese Marketplace community.
                     </p>
                 </div>
                 """.formatted(
@@ -169,7 +172,7 @@ public class ReviewNotificationEmailSender {
                 );
 
         String subject =
-                "You have a new review on DrukConnect";
+                "You have a new review on Bhutanese Marketplace";
 
         String html =
                 """
@@ -210,7 +213,7 @@ public class ReviewNotificationEmailSender {
                     </div>
 
                     <p style="margin-top:22px;">
-                        You can view the review from your DrukConnect listing.
+                        You can view the review from your Bhutanese Marketplace listing.
                     </p>
                 </div>
                 """.formatted(
@@ -267,6 +270,8 @@ public class ReviewNotificationEmailSender {
             helper.setTo(
                     destination
             );
+
+            helper.setFrom(MailBranding.from(from));
 
             helper.setSubject(
                     subject

@@ -700,7 +700,7 @@ public class ListingService {
          */
         String whatsapp =
                 whatsappLink(
-                        lister.getPhoneNumber()
+                        lister.getPublicPhoneNumber()
                 );
 
         ListingOwnerResponse owner =
@@ -712,12 +712,11 @@ public class ListingService {
                                 lister
                         ),
 
-                        lister.getEmail(),
+                        lister.getPublicEmail(),
 
-                        "mailto:"
-                                + lister.getEmail(),
+                        lister.isShowEmail() ? "mailto:" + lister.getPublicEmail() : null,
 
-                        lister.getPhoneNumber(),
+                        lister.getPublicPhoneNumber(),
 
                         whatsapp,
 

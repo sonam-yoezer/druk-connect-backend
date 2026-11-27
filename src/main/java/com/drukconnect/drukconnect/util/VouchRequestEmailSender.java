@@ -80,17 +80,15 @@ public class VouchRequestEmailSender {
                             StandardCharsets.UTF_8.name()
                     );
 
-            helper.setFrom(
-                    properties.mail()
-                            .from()
-            );
+            helper.setFrom(MailBranding.from(properties.mail()
+                            .from()));
 
             helper.setTo(
                     target.getEmail()
             );
 
             helper.setSubject(
-                    "Vouch Request - DrukConnect"
+                    "Vouch Request - Bhutanese Marketplace"
             );
 
             String requesterName =
@@ -126,7 +124,7 @@ public class VouchRequestEmailSender {
                                 color:#1f2937;
                                 margin-bottom:20px;
                             ">
-                                DrukConnect Vouch Request
+                                Bhutanese Marketplace Vouch Request
                             </h2>
 
                             <p style="
@@ -142,7 +140,7 @@ public class VouchRequestEmailSender {
                                 line-height:1.6;
                             ">
                                 <strong>%s</strong>
-                                has asked you to vouch for them on DrukConnect.
+                                has asked you to vouch for them on Bhutanese Marketplace.
                             </p>
 
                             <div style="
@@ -220,7 +218,7 @@ public class VouchRequestEmailSender {
                                 color:#6b7280;
                                 font-size:13px;
                             ">
-                                You can also log in to DrukConnect
+                                You can also log in to Bhutanese Marketplace
                                 and respond from your account.
                             </p>
 
@@ -229,7 +227,7 @@ public class VouchRequestEmailSender {
                                 font-size:12px;
                                 margin-top:30px;
                             ">
-                                DrukConnect
+                                Bhutanese Marketplace
                             </p>
 
                         </div>

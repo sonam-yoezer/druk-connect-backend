@@ -21,6 +21,33 @@ public interface ListerScamReportRepository
         extends JpaRepository<ListerScamReport, UUID> {
 
 
+    long countByReporterId(UUID reporterId);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"reporter", "reportedLister"})
+    Page<ListerScamReport> findAllByReporterId(UUID reporterId, Pageable pageable);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"reporter", "reportedLister"})
+    Page<ListerScamReport> findAllByReporterIdAndStatus(UUID reporterId, ScamReportStatus status, Pageable pageable);
+
+    interface ReporterStats {
+        long getTotalReports();
+        long getPendingReports();
+        long getApprovedReports();
+        long getRejectedReports();
+        java.time.Instant getFirstReportedAt();
+        java.time.Instant getLastReportedAt();
+    }
+
+    @Query("""
+        select count(r) as totalReports,
+               coalesce(sum(case when r.status = 'PENDING' then 1 else 0 end), 0) as pendingReports,
+               coalesce(sum(case when r.status = 'APPROVED' then 1 else 0 end), 0) as approvedReports,
+               coalesce(sum(case when r.status = 'REJECTED' then 1 else 0 end), 0) as rejectedReports,
+               min(r.reportedAt) as firstReportedAt, max(r.reportedAt) as lastReportedAt
+        from ListerScamReport r where r.reporter.id = :reporterId
+        """)
+    ReporterStats getReporterStats(@Param("reporterId") UUID reporterId);
+
     /*
      * Same user cannot spam duplicate pending reports
      * against same source listing.

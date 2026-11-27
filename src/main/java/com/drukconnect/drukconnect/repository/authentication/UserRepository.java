@@ -31,7 +31,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             AND u.status = :status
             AND u.accessType = :accessType
             AND (
-                LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%'))
+                (u.showEmail = true AND LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')))
                 OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
                 OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
                 OR LOWER(CONCAT(u.firstName, ' ', u.lastName))
@@ -73,10 +73,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                     LIKE LOWER(CONCAT('%', :query, '%'))
                 OR LOWER(CONCAT(u.firstName, ' ', u.lastName))
                     LIKE LOWER(CONCAT('%', :query, '%'))
-                OR LOWER(u.email)
-                    LIKE LOWER(CONCAT('%', :query, '%'))
-                OR LOWER(u.phoneNumber)
-                    LIKE LOWER(CONCAT('%', :query, '%'))
+                OR (u.showEmail = true AND LOWER(u.email)
+                    LIKE LOWER(CONCAT('%', :query, '%')))
+                OR (u.showPhoneNumber = true AND LOWER(u.phoneNumber)
+                    LIKE LOWER(CONCAT('%', :query, '%')))
           )
         ORDER BY u.firstName ASC, u.lastName ASC
         """)

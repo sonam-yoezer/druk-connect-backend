@@ -73,9 +73,7 @@ public class SmtpEmailOtpSender
                 new SimpleMailMessage();
 
 
-        message.setFrom(
-                properties.mail().from()
-        );
+        message.setFrom(MailBranding.from(properties.mail().from()));
 
 
         message.setTo(
@@ -84,13 +82,13 @@ public class SmtpEmailOtpSender
 
 
         message.setSubject(
-                "DrukConnect Email Verification"
+                "Bhutanese Marketplace Email Verification"
         );
 
 
         message.setText(
                 """
-                Welcome to DrukConnect.
+                Welcome to Bhutanese Marketplace.
 
                 Your email verification OTP is:
 
@@ -98,10 +96,10 @@ public class SmtpEmailOtpSender
 
                 This OTP will expire in 5 minutes.
 
-                If you did not create a DrukConnect account,
+                If you did not create a Bhutanese Marketplace account,
                 please ignore this email.
 
-                DrukConnect
+                Bhutanese Marketplace
                 """.formatted(otp)
         );
 
