@@ -32,6 +32,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 @Transactional
 class ListerVouchIntegrationTest {
     @Autowired UserRepository users;
+    @Autowired com.drukconnect.drukconnect.service.authentication.BuyerOfferedVouchService offered;
+    @Autowired VouchWithdrawalRequestRepository withdrawals;
     @Autowired VouchRepository vouches;
     @Autowired VouchRequestRepository requests;
     @Autowired ListingRepository listings;
@@ -119,6 +121,87 @@ class ListerVouchIntegrationTest {
             .andExpect(jsonPath("$.items.length()").value(10)).andExpect(jsonPath("$.hasNext").value(true));
         mvc.perform(get("/api/v1/lister/vouches").param("page","1").with(jwt().jwt(j -> j.subject(lister.getId().toString()))))
             .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1));
+    }
+    @Test void buyerCanVouchWithoutARequestAndSeeItOnBothDashboards() throws Exception {
+        mvc.perform(post("/api/v1/buyer/vouches/listers/"+lister.getId())
+            .param("buyerId",user(AccessTypeEnum.BUYER).getId().toString())
+            .with(jwt().jwt(j -> j.subject(buyer.getId().toString())))).andExpect(status().isOk())
+            .andExpect(jsonPath("$.alreadyVouched").value(false));
+        var value = vouches.findByVoucherUserIdAndVouchedUserId(buyer.getId(),lister.getId()).orElseThrow();
+        assertEquals(VouchStatus.ACTIVE,value.getStatus());
+        assertEquals(VouchRequestStatus.ACCEPTED,value.getRequest().getStatus());
+        assertEquals(1,requests.countByRequesterIdAndStatus(lister.getId(),VouchRequestStatus.ACCEPTED));
+        mvc.perform(get("/api/v1/lister/vouches").with(jwt().jwt(j -> j.subject(lister.getId().toString()))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(get("/api/v1/vouch-requests/me/given-vouches").with(jwt().jwt(j -> j.subject(buyer.getId().toString()))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalVouchedUsers").value(1));
+    }
+    @Test void voluntaryVouchAcceptsExistingPendingRequestInsteadOfCreatingAnother() {
+        VouchRequestEntity request = new VouchRequestEntity(); request.setRequester(lister); request.setTarget(buyer);
+        request.setMessage("Please vouch"); request.setStatus(VouchRequestStatus.PENDING); requests.saveAndFlush(request);
+        var result = offered.give(buyer.getId(),lister.getId(),null);
+        var value = vouches.findById(result.vouchId()).orElseThrow();
+        assertEquals(request.getId(),value.getRequest().getId());
+        assertEquals(1,requests.findByRequesterId(lister.getId(),org.springframework.data.domain.PageRequest.of(0,10)).getTotalElements());
+        assertFalse(requests.existsByRequesterIdAndTargetIdAndStatus(lister.getId(),buyer.getId(),VouchRequestStatus.PENDING));
+    }
+    @Test void listerWithTwoVouchesCanRequestAndReceiveAThird() throws Exception {
+        vouch(lister,user(AccessTypeEnum.BUYER),VouchStatus.ACTIVE);
+        vouch(lister,user(AccessTypeEnum.BUYER),VouchStatus.ACTIVE);
+        mvc.perform(post("/api/v1/lister/vouches/requests").contentType("application/json")
+            .content("{\"targetUserId\":\""+buyer.getId()+"\",\"message\":\"Please vouch for me\"}")
+            .with(jwt().jwt(j -> j.subject(lister.getId().toString())))).andExpect(status().isCreated());
+        offered.give(buyer.getId(),lister.getId(),null);
+        assertEquals(3,vouches.countActiveVouchesByUserId(lister.getId()));
+        mvc.perform(get("/api/v1/lister/vouches").with(jwt().jwt(j -> j.subject(lister.getId().toString()))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(3));
+    }
+    @Test void repeatingVoluntaryVouchIsIdempotent() {
+        var first = offered.give(buyer.getId(),lister.getId(),null);
+        var second = offered.give(buyer.getId(),lister.getId(),null);
+        assertEquals(first.vouchId(),second.vouchId());
+        assertTrue(second.alreadyVouched());
+        assertEquals(1,vouches.countActiveVouchesByUserId(lister.getId()));
+        assertEquals(1,requests.countByRequesterIdAndStatus(lister.getId(),VouchRequestStatus.ACCEPTED));
+    }
+    @Test void buyerCanVouchAgainAfterWithdrawalUsingSamePairRow() {
+        var old = vouch(lister,buyer,VouchStatus.WITHDRAWN); old.setRevokedAt(Instant.now()); vouches.saveAndFlush(old);
+        var withdrawal = new VouchWithdrawalRequest(); withdrawal.setVouch(old); withdrawal.setRequestedBy(buyer);
+        withdrawal.setReason("Previous withdrawal"); withdrawal.setStatus(VouchWithdrawalStatus.APPROVED); withdrawals.saveAndFlush(withdrawal);
+        var result = offered.give(buyer.getId(),lister.getId(),null);
+        assertEquals(old.getId(),result.vouchId());
+        assertEquals(VouchStatus.ACTIVE,old.getStatus()); assertNull(old.getRevokedAt());
+        assertEquals(VouchWithdrawalStatus.APPROVED,withdrawals.findById(withdrawal.getId()).orElseThrow().getStatus());
+        assertEquals(1,vouches.countActiveVouchesByUserId(lister.getId()));
+    }
+    @Test void pendingWithdrawalIsPreservedAndCannotBeBypassed() {
+        var old = vouch(lister,buyer,VouchStatus.WITHDRAWN);
+        var withdrawal = new VouchWithdrawalRequest(); withdrawal.setVouch(old); withdrawal.setRequestedBy(buyer);
+        withdrawal.setReason("Awaiting admin"); withdrawal.setStatus(VouchWithdrawalStatus.PENDING); withdrawals.saveAndFlush(withdrawal);
+        var failure = assertThrows(com.drukconnect.drukconnect.common.ApiException.class,
+            () -> offered.give(buyer.getId(),lister.getId(),null));
+        assertEquals("WITHDRAWAL_PENDING",failure.getCode());
+        assertEquals(VouchStatus.WITHDRAWN,old.getStatus());
+        assertEquals(VouchWithdrawalStatus.PENDING,withdrawal.getStatus());
+    }
+    @Test void buyerSearchRespectsEmailPrivacyAndOnlyActiveListersCanReceiveVouches() throws Exception {
+        lister.setShowEmail(false); users.saveAndFlush(lister);
+        mvc.perform(get("/api/v1/buyer/vouches/listers/search").param("query",lister.getFirstName())
+            .with(jwt().jwt(j -> j.subject(buyer.getId().toString())))).andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].userId").value(lister.getId().toString())).andExpect(jsonPath("$[0].email").doesNotExist());
+        mvc.perform(get("/api/v1/buyer/vouches/listers/search").param("query",lister.getEmail())
+            .with(jwt().jwt(j -> j.subject(buyer.getId().toString())))).andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(0));
+        lister.setStatus(UserStatus.SUSPENDED); users.saveAndFlush(lister);
+        mvc.perform(post("/api/v1/buyer/vouches/listers/"+lister.getId())
+            .with(jwt().jwt(j -> j.subject(buyer.getId().toString())))).andExpect(status().isForbidden());
+    }
+    @Test void buyerOfferedVouchesRequireAuthenticationAndBuyerRole() throws Exception {
+        mvc.perform(post("/api/v1/buyer/vouches/listers/"+lister.getId())).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/buyer/vouches/listers/"+lister.getId())
+            .with(jwt().jwt(j -> j.subject(lister.getId().toString())))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/buyer/vouches/listers/"+buyer.getId())
+            .with(jwt().jwt(j -> j.subject(buyer.getId().toString())))).andExpect(status().isBadRequest());
     }
     private User user(AccessTypeEnum type) {
         User user = new User(); user.setFirstName("Member"+UUID.randomUUID()); user.setLastName("Test");

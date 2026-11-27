@@ -117,10 +117,7 @@ public class VouchService {
                         requesterId
                 );
 
-        User target =
-                activeUser(
-                        request.targetUserId()
-                );
+        User target = activeUserForVouch(request.targetUserId());
 
         /*
          * Only LISTER can request vouch.
@@ -335,6 +332,9 @@ public class VouchService {
             RequestMetadata meta
     ) {
 
+        // Serialize vouch decisions and voluntary vouches for this buyer.
+        User target = activeUserForVouch(currentUserId);
+
         VouchRequestEntity entity =
                 requestRepository
                         .findByIdAndStatus(
@@ -376,10 +376,7 @@ public class VouchService {
          * TARGET MUST STILL BE ACTIVE BUYER
          * =========================================================
          */
-        User target =
-                activeUser(
-                        currentUserId
-                );
+
 
 
         if (
@@ -529,6 +526,7 @@ public class VouchService {
                 existingVouch.setRequest(
                         entity
                 );
+                existingVouch.setRevokedAt(null);
 
 
                 /*
@@ -1342,6 +1340,14 @@ public class VouchService {
      * ACTIVE USER HELPER
      * =========================================================
      */
+    private User activeUserForVouch(UUID id) {
+        User user = userRepository.findForProfileUpdate(id).orElseThrow(() ->
+                new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found"));
+        if (user.getStatus() != UserStatus.ACTIVE) throw new ApiException(HttpStatus.CONFLICT,
+                "USER_NOT_ACTIVE", "Vouching is only available to active verified members");
+        return user;
+    }
+
     private User activeUser(
             UUID id
     ) {

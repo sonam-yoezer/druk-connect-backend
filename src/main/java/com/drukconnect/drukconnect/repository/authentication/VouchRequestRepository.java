@@ -27,6 +27,9 @@ public interface VouchRequestRepository extends JpaRepository<VouchRequestEntity
             VouchRequestStatus status
     );
 
+    Optional<VouchRequestEntity> findFirstByRequesterIdAndTargetIdAndStatusOrderByRequestedAtDesc(
+            UUID requesterId, UUID targetId, VouchRequestStatus status);
+
     long countByRequesterIdAndStatus(
             UUID requesterId,
             VouchRequestStatus status
