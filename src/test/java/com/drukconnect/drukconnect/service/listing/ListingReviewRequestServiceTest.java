@@ -92,10 +92,16 @@ class ListingReviewRequestServiceTest {
         assertTrue(result.reviewUrl().contains("reviewRequest=" + result.requestId()));
         verify(email).send(eq(buyer), eq(lister), eq(listing), eq(result.reviewUrl()));
     }
-    @Test void duplicateRequestDoesNotSendAnotherEmail() {
-        requestSetup(); when(requests.findByListingIdAndBuyerId(listing.getId(), buyer.getId())).thenReturn(Optional.of(invitation()));
-        var error = assertThrows(ApiException.class, () -> service.requestReview(lister.getId(), listing.getId(), buyer.getId(), null));
-        assertEquals("REVIEW_REQUEST_PENDING", error.getCode()); verifyNoInteractions(email);
+    @Test void repeatRequestUpdatesExistingInvitationAndSendsReminder() {
+        requestSetup();
+        var existing = invitation();
+        when(requests.findByListingIdAndBuyerId(listing.getId(),buyer.getId())).thenReturn(Optional.of(existing));
+        var result = service.requestReview(lister.getId(),listing.getId(),buyer.getId(),null);
+        assertEquals(existing.getId(),result.requestId());
+        assertEquals("PENDING",result.status());
+        assertTrue(result.message().contains("reminder"));
+        verify(requests).saveAndFlush(same(existing));
+        verify(email).send(eq(buyer),eq(lister),eq(listing),eq(result.reviewUrl()));
     }
     @Test void anotherListerCannotRequestReviewsForThisListing() {
         User stranger = user(AccessTypeEnum.LISTER);
