@@ -154,7 +154,7 @@ public class VouchRecoveryService {
                                         user.getId(),
                                         user.getFirstName(),
                                         user.getLastName(),
-                                        user.getEmail(),
+                                        user.getPublicEmail(),
                                         user.getAccessType()
                                                 .name(),
                                         user.getProfileImageUrl()
@@ -450,7 +450,7 @@ public class VouchRecoveryService {
                 requester.getId(),
                 target.getId(),
                 fullName(target),
-                target.getEmail(),
+                target.getPublicEmail(),
                 entity.getStatus()
                         .name(),
                 entity.getRequestedAt(),

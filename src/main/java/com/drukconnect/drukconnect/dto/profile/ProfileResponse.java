@@ -7,4 +7,4 @@ import java.util.UUID;
 
 public record ProfileResponse(UUID id, String firstName, String lastName, String email,
         String phoneNumber, AccessTypeEnum accessType, List<String> roles, String bio,
-        String location, String profileImageUrl, Instant emailVerifiedAt, Instant phoneVerifiedAt) {}
+        String location, String profileImageUrl, Instant emailVerifiedAt, Instant phoneVerifiedAt, boolean showEmail, boolean showPhoneNumber) {}

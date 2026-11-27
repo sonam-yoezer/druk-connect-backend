@@ -27,9 +27,9 @@ public class ReviewRequestEmailSender {
         try {
             var message = mailSender.createMimeMessage();
             var helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(from);
+            helper.setFrom(MailBranding.from(from));
             helper.setTo(buyer.getEmail());
-            helper.setSubject("DrukConnect: please review " + listing.getListingTitle());
+            helper.setSubject("Bhutanese Marketplace: please review " + listing.getListingTitle());
             helper.setText("""
                 <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto">
                   <h2>Share your experience</h2>
@@ -37,7 +37,7 @@ public class ReviewRequestEmailSender {
                   <p>%s is requesting a review of <strong>%s</strong>.</p>
                   <p>Please leave an honest review only if you have experience with this service.</p>
                   <p><a href="%s">Review this service</a></p>
-                  <p>Sign in with the DrukConnect account associated with this email.
+                  <p>Sign in with the Bhutanese Marketplace account associated with this email.
                      This invitation does not sign you in automatically and expires in 30 days.</p>
                 </div>
                 """.formatted(escape(buyer.getFirstName()),

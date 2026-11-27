@@ -16,6 +16,9 @@ import java.util.List;
 @Service
 public class VouchWithdrawalEmailSender {
 
+    @org.springframework.beans.factory.annotation.Value("${app.mail.from}")
+    private String from;
+
     private final JavaMailSender mailSender;
 
     private final UserRepository userRepository;
@@ -85,7 +88,7 @@ public class VouchWithdrawalEmailSender {
 
                         <p>
                             Please review this request from the
-                            DrukConnect admin panel.
+                            Bhutanese Marketplace admin panel.
                         </p>
                     </div>
                     """.formatted(
@@ -103,7 +106,7 @@ public class VouchWithdrawalEmailSender {
                             ),
 
                             escapeHtml(
-                                    buyer.getEmail()
+                                    buyer.getPublicEmail()
                             ),
 
                             escapeHtml(
@@ -113,7 +116,7 @@ public class VouchWithdrawalEmailSender {
                             ),
 
                             escapeHtml(
-                                    lister.getEmail()
+                                    lister.getPublicEmail()
                             ),
 
                             escapeHtml(
@@ -207,7 +210,7 @@ public class VouchWithdrawalEmailSender {
                                   <p>
                                       Your account no longer meets the
                                       minimum 2-vouch requirement.
-                                      When you sign in, DrukConnect will
+                                      When you sign in, Bhutanese Marketplace will
                                       guide you through vouch recovery.
                                   </p>
                                   """
@@ -301,6 +304,8 @@ public class VouchWithdrawalEmailSender {
             helper.setTo(
                     to
             );
+
+            helper.setFrom(MailBranding.from(from));
 
             helper.setSubject(
                     subject

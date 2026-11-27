@@ -43,17 +43,15 @@ public class VouchSuccessEmailSender {
                             StandardCharsets.UTF_8.name()
                     );
 
-            helper.setFrom(
-                    properties.mail()
-                            .from()
-            );
+            helper.setFrom(MailBranding.from(properties.mail()
+                            .from()));
 
             helper.setTo(
                     lister.getEmail()
             );
 
             helper.setSubject(
-                    "Your DrukConnect Vouch Was Successful"
+                    "Your Bhutanese Marketplace Vouch Was Successful"
             );
 
             String voucherName =
@@ -151,7 +149,7 @@ public class VouchSuccessEmailSender {
                             ">
                                 Good news! <strong>%s</strong>
                                 has successfully vouched for you
-                                on DrukConnect.
+                                on Bhutanese Marketplace.
                             </p>
 
                             <div style="
@@ -190,7 +188,7 @@ public class VouchSuccessEmailSender {
                                 margin-top:25px;
                             ">
                                 Active vouches help establish trust
-                                within the DrukConnect community.
+                                within the Bhutanese Marketplace community.
                             </p>
 
                             <p style="
@@ -198,7 +196,7 @@ public class VouchSuccessEmailSender {
                                 font-size:12px;
                                 margin-top:30px;
                             ">
-                                DrukConnect
+                                Bhutanese Marketplace
                             </p>
 
                         </div>

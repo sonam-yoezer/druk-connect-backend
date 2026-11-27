@@ -26,6 +26,10 @@ public class UserProfileController {
     public ProfileResponse update(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody UpdateProfileRequest body, HttpServletRequest request) {
         return service.update(userId(jwt), body, RequestMetadata.from(request));
     }
+    @PatchMapping("/me/privacy")
+    public ProfileResponse privacy(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ContactPrivacyRequest body, HttpServletRequest request) {
+        return service.updatePrivacy(userId(jwt), body, RequestMetadata.from(request));
+    }
     @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ProfileResponse upload(@AuthenticationPrincipal Jwt jwt, @RequestParam("image") MultipartFile image, HttpServletRequest request) {
         return service.upload(userId(jwt), image, RequestMetadata.from(request));

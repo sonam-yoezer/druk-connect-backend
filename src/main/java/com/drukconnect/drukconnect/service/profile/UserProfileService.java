@@ -38,6 +38,15 @@ public class UserProfileService {
         return response(user);
     }
     @Transactional
+    public ProfileResponse updatePrivacy(UUID userId, ContactPrivacyRequest request, RequestMetadata meta) {
+        User user = requireActive(userId, true);
+        user.setShowEmail(request.showEmail());
+        user.setShowPhoneNumber(request.showPhoneNumber());
+        users.saveAndFlush(user);
+        audit.log("CONTACT_PRIVACY_UPDATED", userId, null, null, null, meta, null);
+        return response(user);
+    }
+    @Transactional
     public ProfileResponse upload(UUID userId, MultipartFile image, RequestMetadata meta) {
         User user = requireActive(userId, true);
         String previous = user.getProfileImagePath();
@@ -79,6 +88,6 @@ public class UserProfileService {
     private ProfileResponse response(User user) {
         return new ProfileResponse(user.getId(), user.getFirstName(), user.getLastName(), user.getEmail(), user.getPhoneNumber(),
                 user.getAccessType(), roles.findRoleCodesByUserId(user.getId()), user.getBio(), user.getLocation(),
-                user.getProfileImageUrl(), user.getEmailVerifiedAt(), user.getPhoneVerifiedAt());
+                user.getProfileImageUrl(), user.getEmailVerifiedAt(), user.getPhoneVerifiedAt(), user.isShowEmail(), user.isShowPhoneNumber());
     }
 }

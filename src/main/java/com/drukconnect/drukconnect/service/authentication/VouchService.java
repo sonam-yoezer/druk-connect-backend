@@ -689,7 +689,7 @@ public class VouchService {
                                 user.getId(),
                                 user.getFirstName(),
                                 user.getLastName(),
-                                user.getEmail(),
+                                user.getPublicEmail(),
                                 user.getAccessType(),
                                 user.getProfileImageUrl()
                         )
@@ -1507,7 +1507,7 @@ public class VouchService {
                                         .getLastName(),
 
                                 request.getRequester()
-                                        .getEmail(),
+                                        .getPublicEmail(),
 
                                 request.getMessage(),
 
@@ -1775,9 +1775,9 @@ public class VouchService {
                                                     lister
                                             ),
 
-                                            lister.getEmail(),
+                                            lister.getPublicEmail(),
 
-                                            lister.getPhoneNumber(),
+                                            lister.getPublicPhoneNumber(),
 
                                             vouch.getStatus()
                                                     .name(),
@@ -2056,9 +2056,9 @@ public class VouchService {
                                                     buyer
                                             ),
 
-                                            buyer.getEmail(),
+                                            buyer.getPublicEmail(),
 
-                                            buyer.getPhoneNumber(),
+                                            buyer.getPublicPhoneNumber(),
 
                                             lister.getId(),
 
@@ -2066,9 +2066,9 @@ public class VouchService {
                                                     lister
                                             ),
 
-                                            lister.getEmail(),
+                                            lister.getPublicEmail(),
 
-                                            lister.getPhoneNumber(),
+                                            lister.getPublicPhoneNumber(),
 
                                             withdrawal.getReason(),
 

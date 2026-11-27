@@ -1862,7 +1862,8 @@ public class PlatformFeedbackService {
                     feedback.getSubmitterNameSnapshot();
 
             submitterEmail =
-                    feedback.getSubmitterEmailSnapshot();
+                    feedback.getSubmittedBy() != null && !feedback.getSubmittedBy().isShowEmail()
+                            ? null : feedback.getSubmitterEmailSnapshot();
         }
 
 

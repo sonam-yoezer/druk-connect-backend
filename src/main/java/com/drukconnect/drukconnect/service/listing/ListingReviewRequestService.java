@@ -101,7 +101,7 @@ public class ListingReviewRequestService {
             "INVALID_SEARCH_QUERY", "Enter between 2 and 100 characters to search Buyers.");
         var result = users.searchActiveBuyers(AccessTypeEnum.BUYER, UserStatus.ACTIVE, text, pageable(page, size));
         var buyers = result.getContent().stream().map(buyer -> new ReviewRecipientResponse(
-            buyer.getId(), buyer.getFirstName(), buyer.getLastName(), buyer.getEmail(), buyer.getPhoneNumber(),
+            buyer.getId(), buyer.getFirstName(), buyer.getLastName(), buyer.getPublicEmail(), buyer.getPublicPhoneNumber(),
             contacts.existsByListingIdAndBuyerId(listingId, buyer.getId()),
             invitations.findByListingIdAndBuyerId(listingId, buyer.getId())
                 .map(request -> "PENDING".equals(request.getStatus()) && validInvitation(request)).orElse(false),

@@ -11,6 +11,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface VouchRepository extends JpaRepository<Vouch, UUID> {
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"voucherUser"})
+    org.springframework.data.domain.Page<Vouch> findByVouchedUserIdAndStatus(
+            UUID userId, VouchStatus status, org.springframework.data.domain.Pageable pageable);
+
     boolean existsByVoucherUserIdAndVouchedUserIdAndStatus(UUID voucherId, UUID vouchedId, VouchStatus status);
 
     @Query("""
