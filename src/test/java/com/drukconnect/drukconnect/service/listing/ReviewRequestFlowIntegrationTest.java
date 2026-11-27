@@ -76,6 +76,49 @@ class ReviewRequestFlowIntegrationTest {
         assertThrows(ApiException.class, () -> reviews.createReview(buyer.getId(), listing.getId(), new CreateListingReviewRequest(4, "Again", Set.of()), null));
         verify(email).send(any(), any(), any(), contains("/buyer-dashboard/services/" + listing.getId()));
     }
+    @Test void repeatRequestsSendRemindersAndKeepExactlyOneInvitationAndAvailment() {
+        availments.mark(lister.getId(), listing.getId(), buyer.getId(), null);
+        var first = service.requestReview(lister.getId(), listing.getId(), buyer.getId(), null);
+        var stored = requests.findById(first.requestId()).orElseThrow();
+        stored.setRequestedAt(java.time.Instant.now().minusSeconds(3600));
+        stored.setExpiresAt(java.time.Instant.now().plusSeconds(3600));
+        requests.saveAndFlush(stored);
+        var second = service.requestReview(lister.getId(), listing.getId(), buyer.getId(), null);
+        var third = service.requestReview(lister.getId(), listing.getId(), buyer.getId(), null);
+        assertEquals(first.requestId(), second.requestId());
+        assertEquals(first.requestId(), third.requestId());
+        assertEquals(1, requests.findByListingIdOrderByRequestedAtDesc(listing.getId(),
+            org.springframework.data.domain.PageRequest.of(0,10)).getTotalElements());
+        assertEquals(1, availments.history(buyer.getId(),1,10).totalElements());
+        stored = requests.findById(first.requestId()).orElseThrow();
+        assertTrue(stored.getExpiresAt().isAfter(java.time.Instant.now().plus(29,java.time.temporal.ChronoUnit.DAYS)));
+        assertTrue(stored.getRequestedAt().isAfter(java.time.Instant.now().minusSeconds(60)));
+        assertNotNull(stored.getEmailSentAt());
+        assertTrue(second.message().contains("reminder"));
+        verify(email,times(3)).send(any(),any(),any(),contains("reviewRequest="+first.requestId()));
+    }
+    @Test void failedReminderPreservesThePreviouslyDeliveredInvitation() {
+        var first = service.requestReview(lister.getId(), listing.getId(), buyer.getId(), null);
+        var stored = requests.findById(first.requestId()).orElseThrow();
+        var requestedAt = stored.getRequestedAt();
+        var expiresAt = stored.getExpiresAt();
+        var sentAt = stored.getEmailSentAt();
+        doThrow(new IllegalStateException("SMTP down")).when(email).send(any(),any(),any(),anyString());
+        assertThrows(ApiException.class, () -> service.requestReview(lister.getId(),listing.getId(),buyer.getId(),null));
+        stored = requests.findById(first.requestId()).orElseThrow();
+        assertEquals(requestedAt,stored.getRequestedAt());
+        assertEquals(expiresAt,stored.getExpiresAt());
+        assertEquals(sentAt,stored.getEmailSentAt());
+        assertTrue(service.eligibility(buyer.getId(),listing.getId()).canReview());
+    }
+    @Test void submittedReviewsAreNotInvitedAgainAndNonOwnersCannotSendReminders() {
+        service.requestReview(lister.getId(),listing.getId(),buyer.getId(),null);
+        User otherLister = users.saveAndFlush(user(AccessTypeEnum.LISTER));
+        assertThrows(ApiException.class, () -> service.requestReview(otherLister.getId(),listing.getId(),buyer.getId(),null));
+        reviews.createReview(buyer.getId(),listing.getId(),new CreateListingReviewRequest(5,"Great",Set.of()),null);
+        assertThrows(ApiException.class, () -> service.requestReview(lister.getId(),listing.getId(),buyer.getId(),null));
+        verify(email).send(any(),any(),any(),anyString());
+    }
     @Test void mailFailureRollsBackInvitationAndEligibility() {
         doThrow(new IllegalStateException("SMTP down")).when(email).send(any(), any(), any(), anyString());
         assertThrows(ApiException.class, () -> service.requestReview(lister.getId(), listing.getId(), buyer.getId(), null));

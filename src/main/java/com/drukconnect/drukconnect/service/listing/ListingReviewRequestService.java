@@ -122,15 +122,13 @@ public class ListingReviewRequestService {
         if (alreadyReviewed(listingId, buyerId)) throw new ApiException(HttpStatus.CONFLICT,
             "REVIEW_ALREADY_EXISTS", "This Buyer already has a pending or approved review for this listing.");
         var request = invitations.findByListingIdAndBuyerId(listingId, buyerId).orElseGet(ListingReviewRequest::new);
-        if ("PENDING".equals(request.getStatus()) && validInvitation(request)) {
-            throw new ApiException(HttpStatus.CONFLICT, "REVIEW_REQUEST_PENDING", "A review request is already pending for this Buyer.");
-        }
+        boolean reminder = request.getId() != null;
         Instant now = Instant.now();
         request.setListing(listing); request.setBuyer(buyer); request.setStatus("PENDING");
         request.setRequestedAt(now); request.setExpiresAt(now.plus(30, ChronoUnit.DAYS));
         request.setCompletedAt(null); request.setEmailSentAt(null);
         invitations.saveAndFlush(request);
-        audit.log("LISTING_REVIEW_REQUESTED", listerId, null, buyerId, null, meta,
+        audit.log(reminder ? "LISTING_REVIEW_REMINDER_REQUESTED" : "LISTING_REVIEW_REQUESTED", listerId, null, buyerId, null, meta,
             "{\"listingId\":\"" + listingId + "\",\"requestId\":\"" + request.getId() + "\"}");
         try {
             email.send(buyer, listing.getLister(), listing, reviewUrl(request));
@@ -140,7 +138,7 @@ public class ListingReviewRequestService {
                 "Unable to send the review request email. Please try again.");
         }
         request.setEmailSentAt(Instant.now());
-        return response(request, "Review request email sent successfully.");
+        return response(request, reminder ? "Review reminder email sent successfully." : "Review request email sent successfully.");
     }
 
     @Transactional(readOnly = true)
